@@ -25,7 +25,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*
 .env*.local
 
 # vercel
@@ -50,5 +49,5 @@ next-env.d.ts
 .cursorrules
 /memory-bank
 
-# Sentry Config File
-.env.sentry-build-plugin
+# deployment
+DEPLOYMENT.md

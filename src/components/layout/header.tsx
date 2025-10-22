@@ -4,7 +4,6 @@ import { Separator } from '../ui/separator';
 import { Breadcrumbs } from '../breadcrumbs';
 import SearchInput from '../search-input';
 import { UserNav } from './user-nav';
-import { ThemeSelector } from '../theme-selector';
 import { ModeToggle } from './ThemeToggle/theme-toggle';
 import RevalidateButton from '../revalidate-button';
 
@@ -24,7 +23,6 @@ export default function Header() {
         </div>
         <UserNav />
         <ModeToggle />
-        <ThemeSelector />
       </div>
     </header>
   );

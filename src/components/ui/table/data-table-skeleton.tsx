@@ -63,7 +63,7 @@ export function DataTableSkeleton({
                       minWidth: shrinkZero ? cozyCellWidths[j] : 'auto'
                     }}
                   >
-                    <Skeleton className='h-6 w-full' />
+                    <Skeleton className='h-7 w-full py-3' />
                   </TableHead>
                 ))}
               </TableRow>
@@ -80,7 +80,7 @@ export function DataTableSkeleton({
                       minWidth: shrinkZero ? cozyCellWidths[j] : 'auto'
                     }}
                   >
-                    <Skeleton className='h-6 w-full' />
+                    <Skeleton className='h-10 w-full py-3' />
                   </TableCell>
                 ))}
               </TableRow>

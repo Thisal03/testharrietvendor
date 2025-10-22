@@ -6,7 +6,10 @@ import {
   Clock,
   AlertCircle,
   XCircle,
-  LucideIcon
+  LucideIcon,
+  Package,
+  Truck,
+  RotateCcw
 } from 'lucide-react';
 
 // Type for all possible status values
@@ -18,6 +21,9 @@ type OrderStatus =
   | 'processing'
   | 'refunded'
   | 'failed'
+  | 'ready-to-ship'
+  | 'shipped'
+  | 'returned'
   | string; // Allows for custom statuses
 
 // Configuration object for status appearances
@@ -30,65 +36,81 @@ const STATUS_CONFIG: Record<
     label?: string; // Optional label for some statuses
   }
 > = {
-  completed: {
-    icon: CheckCircle,
-    bgColor: 'bg-green-50',
-    textColor: 'text-green-600'
-  },
-  instock: {
-    icon: CheckCircle,
-    bgColor: 'bg-green-50',
-    textColor: 'text-green-600',
-    label: 'In Stock'
-  },
-  outofstock: {
-    icon: XCircle,
-    bgColor: 'bg-red-50',
-    textColor: 'text-red-600',
-    label: 'Out of Stock'
-  },
-  'ready-to-ship': {
-    icon: CheckCircle,
-    bgColor: 'bg-green-50',
-    textColor: 'text-green-600',
-    label: 'Ready to Ship'
-  },
+  // REQUIRED COLORS - Exact matches as specified
   pending: {
     icon: Clock,
     bgColor: 'bg-yellow-50',
-    textColor: 'text-yellow-500'
+    textColor: 'text-yellow-600'
   },
-  'on-hold': {
-    icon: AlertCircle,
-    bgColor: 'bg-yellow-50',
-    textColor: 'text-yellow-500',
-    label: 'On Hold'
+  processing: {
+    icon: Package,
+    bgColor: 'bg-green-50',
+    textColor: 'text-green-600'
+  },
+  completed: {
+    icon: CheckCircle,
+    bgColor: 'bg-blue-50',
+    textColor: 'text-blue-600'
+  },
+  returned: {
+    icon: RotateCcw,
+    bgColor: 'bg-gray-50',
+    textColor: 'text-gray-600'
   },
   cancelled: {
     icon: XCircle,
     bgColor: 'bg-red-50',
     textColor: 'text-red-600'
   },
-  processing: {
-    icon: Clock,
-    bgColor: 'bg-blue-50',
-    textColor: 'text-blue-600'
+  
+  // ADDITIONAL STATUSES - Different colors to avoid conflicts
+  'ready-to-ship': {
+    icon: Package,
+    bgColor: 'bg-indigo-50',
+    textColor: 'text-indigo-600',
+    label: 'Ready to Ship'
+  },
+  shipped: {
+    icon: Truck,
+    bgColor: 'bg-cyan-50',
+    textColor: 'text-cyan-600'
   },
   refunded: {
     icon: CheckCircle,
     bgColor: 'bg-purple-50',
     textColor: 'text-purple-600'
   },
+  'on-hold': {
+    icon: AlertCircle,
+    bgColor: 'bg-orange-50',
+    textColor: 'text-orange-600',
+    label: 'On Hold'
+  },
   failed: {
     icon: XCircle,
-    bgColor: 'bg-red-50',
-    textColor: 'text-red-600'
+    bgColor: 'bg-rose-50',
+    textColor: 'text-rose-600'
   },
+  
+  // LEGACY STATUSES - Different colors for backward compatibility
+  instock: {
+    icon: CheckCircle,
+    bgColor: 'bg-emerald-50',
+    textColor: 'text-emerald-600',
+    label: 'In Stock'
+  },
+  outofstock: {
+    icon: XCircle,
+    bgColor: 'bg-pink-50',
+    textColor: 'text-pink-600',
+    label: 'Out of Stock'
+  },
+  
   // Default configuration for unknown statuses
   default: {
     icon: AlertCircle,
-    bgColor: 'bg-gray-50',
-    textColor: 'text-gray-600'
+    bgColor: 'bg-slate-50',
+    textColor: 'text-slate-600'
   }
 };
 

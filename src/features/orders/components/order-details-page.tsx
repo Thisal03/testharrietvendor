@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { useState, useOptimistic, startTransition } from 'react';
+import { useState, useOptimistic, startTransition, useEffect } from 'react';
 import {
   Package,
   User,
@@ -36,6 +36,78 @@ import { Modal } from '@/components/ui/modal';
 import PrintWaybill from './print-waybill';
 import { formatPrice } from '@/lib/utils';
 import Image from 'next/image';
+import { getProductFeaturedImage } from '@/framework/products/get-product-images';
+
+// Component to handle product image display
+function ProductImageDisplay({ productId, productName, fallbackImage }: { 
+  productId: number; 
+  productName: string; 
+  fallbackImage?: any;
+}) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchImage = async () => {
+      try {
+        const url = await getProductFeaturedImage(productId);
+        setImageUrl(url);
+      } catch (error) {
+        console.error('Failed to fetch product image:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchImage();
+    }
+  }, [productId]);
+
+  if (isLoading) {
+    return (
+      <div className='flex h-[50px] w-[50px] items-center justify-center rounded-sm bg-muted animate-pulse'>
+        <Package className='h-6 w-6 text-muted-foreground' />
+      </div>
+    );
+  }
+
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={productName}
+        width={50}
+        height={50}
+        className='rounded-sm object-cover'
+        onError={() => {
+          console.error('Failed to load image:', imageUrl);
+          setImageUrl(null);
+        }}
+      />
+    );
+  }
+
+  // Fallback to order item image if available
+  if (fallbackImage && fallbackImage.thumbnail && fallbackImage.thumbnail.trim() !== '') {
+    return (
+      <Image
+        src={fallbackImage.thumbnail}
+        alt={fallbackImage.alt || productName}
+        width={50}
+        height={50}
+        className='rounded-sm object-cover'
+      />
+    );
+  }
+
+  // Final fallback
+  return (
+    <div className='flex h-[50px] w-[50px] items-center justify-center rounded-sm bg-muted text-muted-foreground'>
+      <Package className='h-6 w-6' />
+    </div>
+  );
+}
 
 export default function OrderDetailsPage({ order }: { order: Order }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -107,12 +179,12 @@ export default function OrderDetailsPage({ order }: { order: Order }) {
                 </p>
               </div>
             </div>
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-2 lg:w-96'>
               {/* <Button variant='outline' size='sm'>
                 <Download className='mr-1 h-4 w-4' />
                 Export
               </Button> */}
-              {hasTrackingCode && order.status === 'ready-to-ship' && order.id && (
+              {hasTrackingCode && order.id && (
                 <PrintWaybill order={order} />
               )}
             </div>
@@ -155,19 +227,11 @@ export default function OrderDetailsPage({ order }: { order: Order }) {
                               }
                             >
                               <TableCell className='flex items-center gap-2 font-medium'>
-                                {item.product_image ? (
-                                  <Image
-                                    src={item.product_image.thumbnail}
-                                    alt={item.product_image.alt || item.name}
-                                    width={50}
-                                    height={50}
-                                    className='rounded-sm'
-                                  />
-                                ) : (
-                                  <div className='flex h-[50px] w-[50px] items-center justify-center rounded-sm bg-muted text-muted-foreground'>
-                                    <Package className='h-6 w-6' />
-                                  </div>
-                                )}
+                                <ProductImageDisplay 
+                                  productId={item.product_id}
+                                  productName={item.name || 'Unnamed Product'}
+                                  fallbackImage={item.product_image}
+                                />
                                 <span>{item.name || 'Unnamed Product'}</span>
                               </TableCell>
                               <TableCell className='text-center'>
@@ -355,7 +419,7 @@ export default function OrderDetailsPage({ order }: { order: Order }) {
                       {optimisticOrder.status === 'processing' && optimisticOrder.id && (
                               <Button
                                 size='sm'
-                                className='w-full'
+                                className='w-full bg-red-500 hover:bg-red-800 text-white border-red-800 hover:border-red-800'
                                 onClick={() => setModalOpen(true)}
                                 disabled={isSaving}
                               >

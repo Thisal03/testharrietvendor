@@ -1,5 +1,5 @@
 'use client';
-import { signIn, useSession, getSession } from 'next-auth/react';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import * as z from 'zod';
 import { signInSchema } from '../form-schema';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 type UserFormValue = z.infer<typeof signInSchema>;
 
@@ -29,21 +30,8 @@ const errorMessages: Record<string, string> = {
 export default function UserAuthForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { data: session, status } = useSession();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-
-  // Debug session status
-  console.log('Session status:', status, 'Session data:', session);
-
-  // Handle redirect when session becomes available
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      console.log('Session authenticated, redirecting to dashboard');
-      router.push('/');
-    }
-  }, [status, session, router]);
 
   const form = useForm<UserFormValue>({
     resolver: zodResolver(signInSchema),
@@ -70,94 +58,31 @@ export default function UserAuthForm() {
     }
   }, [searchParams, router]);
 
-  const attemptSignIn = useCallback(
-    async (data: UserFormValue): Promise<boolean> => {
-      const maxAttempts = 3;
-      
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  const onSubmit = useCallback(
+    async (data: UserFormValue) => {
+      setError(null);
+      startTransition(async () => {
         try {
-          console.log(`Authentication attempt ${attempt}/${maxAttempts}`);
-          
           const result = await signIn('credentials', {
             ...data,
             redirect: false
           });
 
-          console.log('SignIn result:', result);
-
           if (result?.error) {
-            console.error(`Sign In Error (attempt ${attempt}):`, result.error);
-            
-            // Handle specific error cases that shouldn't be retried
-            if (result.error === 'CredentialsSignin') {
-              setError('Invalid username or password. Please check your credentials and try again.');
-              return false;
-            } else if (result.error === 'Configuration') {
-              setError('Authentication service is not properly configured. Please contact support.');
-              return false;
-            } else {
-              // For other errors, retry if we haven't exceeded max attempts
-              if (attempt < maxAttempts) {
-                console.log(`Retrying authentication in ${1000 * attempt}ms...`);
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                continue; // Try again
-              } else {
-                setError(errorMessages[result.error] || 'Login failed after multiple attempts. Please try again.');
-                return false;
-              }
-            }
+            throw new Error(result.error);
           }
 
-          // Check for successful authentication
-          if (result?.ok || result?.status === 200 || (!result?.error && !result?.url)) {
-            console.log('Authentication successful, refreshing session...');
-            // Force a session refresh to ensure the JWT token is properly updated
-            await getSession();
-            return true;
-          } else {
-            // If result is not ok and not an error, retry
-            if (attempt < maxAttempts) {
-              console.log(`Retrying authentication in ${1000 * attempt}ms...`);
-              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-              continue; // Try again
-            } else {
-              setError('Login failed after multiple attempts. Please try again.');
-              return false;
-            }
-          }
+          router.push('/');
+          toast.success('Login successful');
         } catch (error) {
-          console.error(`Sign In Error (attempt ${attempt}):`, error);
-          
-          if (attempt < maxAttempts) {
-            console.log(`Retrying authentication in ${1000 * attempt}ms...`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-            continue; // Try again
-          } else {
-            const message = error instanceof Error ? error.message : 'Login failed';
-            setError(errorMessages[message] || 'An unexpected error occurred after multiple attempts. Please try again.');
-            return false;
-          }
-        }
-      }
-      
-      return false; // Should never reach here, but just in case
-    },
-    []
-  );
-
-  const onSubmit = useCallback(
-    async (data: UserFormValue) => {
-      setError(null);
-      setRetryCount(0);
-      startTransition(async () => {
-        const success = await attemptSignIn(data);
-        if (success) {
-          console.log('Authentication successful, waiting for session update...');
-          // The useEffect will handle the redirect when session becomes available
+          console.error('Sign In Error:', error);
+          const message =
+            error instanceof Error ? error.message : 'Login failed';
+          setError(errorMessages[message] || message);
         }
       });
     },
-    [attemptSignIn]
+    [router]
   );
 
   return (
@@ -218,6 +143,15 @@ export default function UserAuthForm() {
             'Sign In'
           )}
         </Button>
+        <p className='text-muted-foreground text-sm font-medium'>
+          Want to become a vendor?{' '}
+          <Link
+            href='/register'
+            className='hover:text-primary underline underline-offset-4'
+          >
+            Register
+          </Link>
+        </p>
       </form>
     </Form>
   );

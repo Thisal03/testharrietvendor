@@ -1,0 +1,58 @@
+stages:
+  - build
+  - deploy
+
+# Build Job
+build_job:
+  stage: build
+  image: node:20-slim
+  script:
+    - yarn install --frozen-lockfile
+    - yarn build
+  artifacts:
+    paths:
+      - .next/
+      - public/
+      - package.json
+      - yarn.lock
+      - node_modules/
+    expire_in: 1 hour
+  rules:
+    # Run only on merge requests targeting main
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
+      when: on_success
+    # Run when changes are pushed directly to main (e.g. after merge)
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    # Never run otherwise
+    - when: never
+
+# Deploy Job
+deploy_job:
+  stage: deploy
+  tags:
+    - 'Contabo VPS'
+  script:
+    - DEPLOY_DIR="/var/www/sellerportal-app"
+    # Create deploy directory if missing and set permissions
+    - rm -rf /var/www/*
+    - sudo mkdir -p $DEPLOY_DIR
+    - sudo chown -R gitlab-runner:gitlab-runner $DEPLOY_DIR
+    # Copy .env.production from the repo to deploy directory
+    - cp .env.production $DEPLOY_DIR/.env.production
+    # Copy build artifacts to deploy directory
+    - cp -r .next $DEPLOY_DIR/.next
+    - cp -r public $DEPLOY_DIR/public
+    - cp package.json $DEPLOY_DIR/package.json
+    - cp yarn.lock $DEPLOY_DIR/yarn.lock
+    - cp -r node_modules $DEPLOY_DIR/node_modules
+    # Start or restart the app with PM2, applying updated environment variables
+    - pm2 restart harriet-vendor-portal --update-env || pm2 start "yarn start" --name harriet-vendor-portal --cwd $DEPLOY_DIR --update-env
+    # Debug: show which environment variables are active
+    - echo "Active environment variables:"
+    - env | grep NEXT || true
+  rules:
+    # Only after merge request to main is approved and merged
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never

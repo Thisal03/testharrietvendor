@@ -9,8 +9,9 @@ export const getProductById = async (
   try {
     const token = await getAccessToken();
 
+    // Use the correct WooCommerce products endpoint
     const response = await fetch(
-      `${config.WORDPRESS_SITE_URL}/wp-json/wc/v3/vendor-products/${productId}`,
+      `${config.WORDPRESS_SITE_URL}/wp-json/wc/v3/products/${productId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

@@ -5,7 +5,7 @@ import { ONE_HOUR } from '@/constants/utils';
 export const getWaybill = async (trackingId: string): Promise<any> => {
   try {
     const response = await fetch(
-      `${config.CITYPAK_SITE_URL}?tracking_numbers[]=${trackingId}`,
+      `${config.CITYPAK_SITE_URL}?tracking_numbers[]=${trackingId}&page_size=4X6`,
       {
         headers: {
           Authorization: `Bearer ${config.CITYPAK_TOKEN}`

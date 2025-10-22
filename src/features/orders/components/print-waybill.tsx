@@ -32,7 +32,12 @@ const PrintWaybill = ({ order }: { order: Order }) => {
     }
   };
   return (
-    <Button variant='outline' size='sm' onClick={downloadWaybill}>
+    <Button 
+      variant='outline' 
+      size='sm' 
+      onClick={downloadWaybill}
+      className='bg-red-500 hover:bg-red-800 text-white border-red-600 hover:border-red-800 hover:text-white w-full h-10'
+    >
       {loading ? (
         <Loader2 className='mr-1 size-4 animate-spin' />
       ) : (

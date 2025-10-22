@@ -14,12 +14,14 @@ export default async function Page(props: PageProps) {
   if (!session?.access_token) return null;
 
   return (
-    <PageContainer scrollable>
-      <div className='flex-1 space-y-4'>
-        <Suspense fallback={<FormCardSkeleton />}>
-          <ProductViewPage productId={params.productId} />
-        </Suspense>
-      </div>
-    </PageContainer>
+    <div className='min-h-screen bg-gray-200 dark:bg-gray-900'>
+      <PageContainer scrollable>
+        <div className='flex-1 space-y-4'>
+          <Suspense fallback={<FormCardSkeleton />}>
+            <ProductViewPage productId={params.productId} />
+          </Suspense>
+        </div>
+      </PageContainer>
+    </div>
   );
 }

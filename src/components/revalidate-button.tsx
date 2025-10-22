@@ -33,18 +33,23 @@ const RevalidateButton = () => {
       <TooltipTrigger asChild>
         <Button
           variant='outline'
-          size='icon'
           onClick={handleRevalidate}
           disabled={loading || checked}
         >
           {checked ? (
-            <Check className={cn('size-4')} />
+            <>
+              <Check className={cn('size-4 mr-2')} />
+              <span>Refresh Page</span>
+            </>
           ) : (
-            <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
+            <>
+              <RefreshCw className={cn('size-4 mr-2', loading && 'animate-spin')} />
+              <span>Refresh Page</span>
+            </>
           )}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Revalidate Path</TooltipContent>
+      <TooltipContent>Refresh Page</TooltipContent>
     </Tooltip>
   );
 };

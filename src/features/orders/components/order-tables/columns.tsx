@@ -11,7 +11,9 @@ import Link from 'next/link';
 export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: 'number',
-    header: 'Order Number',
+    header: ({ column }: { column: Column<Order, unknown> }) => (
+      <DataTableColumnHeader column={column} title='Order Number' />
+    ),
     cell: ({ row }) => {
       return (
         <Link
@@ -21,7 +23,9 @@ export const columns: ColumnDef<Order>[] = [
           <div className='font-medium'>#{row.getValue('number')}</div>
         </Link>
       );
-    }
+    },
+    size: 150,
+    minSize: 120
   },
   {
     id: 'date_created',
@@ -32,7 +36,9 @@ export const columns: ColumnDef<Order>[] = [
     cell: ({ cell }) => {
       const date = new Date(cell.getValue<string>());
       return <div>{date.toLocaleDateString()}</div>;
-    }
+    },
+    size: 120,
+    minSize: 100
   },
   {
     id: 'status',
@@ -45,6 +51,8 @@ export const columns: ColumnDef<Order>[] = [
       return <StatusBadge status={status} />;
     },
     enableColumnFilter: true,
+    size: 140,
+    minSize: 120,
     meta: {
       label: 'Sort by Status',
       variant: 'select',
@@ -56,17 +64,31 @@ export const columns: ColumnDef<Order>[] = [
     accessorFn: (row) => `${row.billing.first_name} ${row.billing.last_name}`,
     header: ({ column }: { column: Column<Order, unknown> }) => (
       <DataTableColumnHeader column={column} title='Customer' />
-    )
+    ),
+    size: 180,
+    minSize: 150
   },
   {
     accessorKey: 'total',
-    header: 'Total',
+    header: ({ column }: { column: Column<Order, unknown> }) => (
+      <DataTableColumnHeader column={column} title='Total' />
+    ),
     cell: ({ row }) => {
       return <div>{formatPrice(row.getValue('total'))}</div>;
-    }
+    },
+    size: 120,
+    minSize: 100
   },
   {
     id: 'actions',
-    cell: ({ row }) => <CellAction data={row.original} />
+    header: ({ column }: { column: Column<Order, unknown> }) => (
+      <DataTableColumnHeader column={column} title='Actions' />
+    ),
+    cell: ({ row }) => <CellAction data={row.original} />,
+    size: 80,
+    minSize: 60,
+    enableSorting: false,
+    enableColumnFilter: false,
+    enableHiding: false
   }
 ];

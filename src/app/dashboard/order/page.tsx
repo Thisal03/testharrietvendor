@@ -40,7 +40,7 @@ export default async function Page(props: pageProps) {
         <Suspense
           // key={key}
           fallback={
-            <DataTableSkeleton columnCount={5} rowCount={8} filterCount={2} />
+            <DataTableSkeleton columnCount={5} rowCount={10} filterCount={2} />
           }
         >
           <OrderListingPage />

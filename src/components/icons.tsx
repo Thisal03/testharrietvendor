@@ -16,6 +16,7 @@ import {
   IconLogin,
   IconProps,
   IconShoppingBag,
+  IconShoppingCart,
   IconMoon,
   IconDotsVertical,
   IconPizza,
@@ -68,5 +69,5 @@ export const Icons = {
   github: IconBrandGithub,
   twitter: IconBrandTwitter,
   check: IconCheck,
-  order: IconList
+  order: IconShoppingCart
 };

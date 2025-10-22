@@ -1,28 +1,18 @@
 import { auth } from '@/auth';
 import PageContainer from '@/components/layout/page-container';
-import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardAction,
-  CardFooter
-} from '@/components/ui/card';
+// Unused imports removed
 import { OVERVIEW_METADATA } from '@/lib/metadata/metadata.pages';
-import { IconTrendingDown, IconTrendingUp } from '@tabler/icons-react';
+// Unused icons removed
 import { redirect } from 'next/navigation';
 import React from 'react';
+// import { getVendorInfo } from '@/framework/vendor/get-vendor-info';
 
 export const metadata = OVERVIEW_METADATA;
 
 export const dynamic = 'force-dynamic';
 
 export default async function OverViewLayout({
-  sales,
-  pie_stats,
-  bar_stats,
-  area_stats
+  sales
 }: {
   sales: React.ReactNode;
   pie_stats: React.ReactNode;
@@ -39,16 +29,22 @@ export default async function OverViewLayout({
     return null;
   }
 
+  // Fetch vendor information
+  // const vendorInfo = await getVendorInfo();
+
+  // Use store name for the greeting
+  // const displayName = vendorInfo?.store_name || 'Store';
+
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col space-y-2'>
         <div className='flex items-center justify-between space-y-2'>
           <h2 className='text-2xl font-bold tracking-tight'>
-            Welcome back {session.user.name} 👋
+            Welcome back 👋
           </h2>
         </div>
 
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
+        {/* <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
           <Card className='@container/card'>
             <CardHeader>
               <CardDescription>Total Revenue</CardDescription>
@@ -138,16 +134,17 @@ export default async function OverViewLayout({
               </div>
             </CardFooter>
           </Card>
-        </div>
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7'>
-          <div className='col-span-4'>{bar_stats}</div>
-          <div className='col-span-4 md:col-span-3'>
+        </div> */}
+        <div className='col-span-4 md:col-span-3 pt-4'>
             {/* sales arallel routes */}
             {sales}
-          </div>
-          <div className='col-span-4'>{area_stats}</div>
-          <div className='col-span-4 md:col-span-3'>{pie_stats}</div>
         </div>
+        {/* <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7'> */}
+          {/* <div className='col-span-4'>{bar_stats}</div> */}
+        
+          {/* <div className='col-span-4'>{area_stats}</div>
+          <div className='col-span-4 md:col-span-3'>{pie_stats}</div> */}
+        {/* </div> */}
       </div>
     </PageContainer>
   );

@@ -185,7 +185,7 @@ export function FileUploader(props: FileUploaderProps) {
   const isDisabled = disabled || (files?.length ?? 0) >= maxFiles;
 
   return (
-    <div className='relative flex flex-col gap-6 overflow-hidden'>
+    <div className='relative flex flex-col gap-4 overflow-hidden'>
       <Dropzone
         onDrop={onDrop}
         accept={accept}
@@ -198,7 +198,7 @@ export function FileUploader(props: FileUploaderProps) {
           <div
             {...getRootProps()}
             className={cn(
-              'group border-muted-foreground/25 hover:bg-muted/25 relative grid h-52 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed px-5 py-2.5 text-center transition',
+              'group border-muted-foreground/25 hover:bg-muted/25 relative grid h-24 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed px-4 py-2 text-center transition',
               'ring-offset-background focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden',
               isDragActive && 'border-muted-foreground/50',
               isDisabled && 'pointer-events-none opacity-60',
@@ -208,35 +208,29 @@ export function FileUploader(props: FileUploaderProps) {
           >
             <input {...getInputProps()} />
             {isDragActive ? (
-              <div className='flex flex-col items-center justify-center gap-4 sm:px-5'>
-                <div className='rounded-full border border-dashed p-3'>
-                  <IconUpload
-                    className='text-muted-foreground size-7'
-                    aria-hidden='true'
-                  />
-                </div>
-                <p className='text-muted-foreground font-medium'>
-                  Drop the files here
+              <div className='flex items-center justify-center gap-2'>
+                <IconUpload
+                  className='text-muted-foreground size-5'
+                  aria-hidden='true'
+                />
+                <p className='text-muted-foreground text-sm font-medium'>
+                  Drop files here
                 </p>
               </div>
             ) : (
-              <div className='flex flex-col items-center justify-center gap-4 sm:px-5'>
-                <div className='rounded-full border border-dashed p-3'>
-                  <IconUpload
-                    className='text-muted-foreground size-7'
-                    aria-hidden='true'
-                  />
-                </div>
-                <div className='space-y-px'>
-                  <p className='text-muted-foreground font-medium'>
-                    Drag {`'n'`} drop files here, or click to select files
+              <div className='flex items-center justify-center gap-2'>
+                <IconUpload
+                  className='text-muted-foreground size-5'
+                  aria-hidden='true'
+                />
+                <div>
+                  <p className='text-muted-foreground text-sm font-medium'>
+                    Click to upload or drag and drop
                   </p>
-                  <p className='text-muted-foreground/70 text-sm'>
-                    You can upload
+                  <p className='text-muted-foreground/70 text-xs'>
                     {maxFiles > 1
-                      ? ` ${maxFiles === Infinity ? 'multiple' : maxFiles}
-                      files (up to ${formatBytes(maxSize)} each)`
-                      : ` a file with ${formatBytes(maxSize)}`}
+                      ? `Up to ${maxFiles === Infinity ? 'multiple' : maxFiles} files (${formatBytes(maxSize)} each)`
+                      : `Max ${formatBytes(maxSize)}`}
                   </p>
                 </div>
               </div>
@@ -245,18 +239,16 @@ export function FileUploader(props: FileUploaderProps) {
         )}
       </Dropzone>
       {files?.length ? (
-        <ScrollArea className='h-fit w-full px-3'>
-          <div className='max-h-48 space-y-4'>
-            {files?.map((file, index) => (
-              <FileCard
-                key={index}
-                file={file}
-                onRemove={() => onRemove(index)}
-                progress={progresses?.[file.name]}
-              />
-            ))}
-          </div>
-        </ScrollArea>
+        <div className='grid grid-cols-4 gap-2'>
+          {files?.map((file, index) => (
+            <FileCard
+              key={index}
+              file={file}
+              onRemove={() => onRemove(index)}
+              progress={progresses?.[file.name]}
+            />
+          ))}
+        </div>
       ) : null}
     </div>
   );
@@ -270,42 +262,34 @@ interface FileCardProps {
 
 function FileCard({ file, progress, onRemove }: FileCardProps) {
   return (
-    <div className='relative flex items-center space-x-4'>
-      <div className='flex flex-1 space-x-4'>
-        {isFileWithPreview(file) ? (
+    <div className='relative group rounded-md border bg-white overflow-hidden'>
+      {isFileWithPreview(file) ? (
+        <div className='relative w-full h-20'>
           <Image
             src={file.preview}
             alt={file.name}
-            width={48}
-            height={48}
+            fill
             loading='lazy'
-            className='aspect-square shrink-0 rounded-md object-cover'
+            className='object-cover'
           />
-        ) : null}
-        <div className='flex w-full flex-col gap-2'>
-          <div className='space-y-px'>
-            <p className='text-foreground/80 line-clamp-1 text-sm font-medium'>
-              {file.name}
-            </p>
-            <p className='text-muted-foreground text-xs'>
-              {formatBytes(file.size)}
-            </p>
-          </div>
-          {progress ? <Progress value={progress} /> : null}
+          <Button
+            type='button'
+            variant='destructive'
+            size='icon'
+            onClick={onRemove}
+            disabled={progress !== undefined && progress < 100}
+            className='absolute top-1 right-1 size-6 opacity-0 group-hover:opacity-100 transition-opacity'
+          >
+            <IconX className='size-3' />
+            <span className='sr-only'>Remove file</span>
+          </Button>
         </div>
-      </div>
-      <div className='flex items-center gap-2'>
-        <Button
-          type='button'
-          variant='ghost'
-          size='icon'
-          onClick={onRemove}
-          disabled={progress !== undefined && progress < 100}
-          className='size-8 rounded-full'
-        >
-          <IconX className='text-muted-foreground' />
-          <span className='sr-only'>Remove file</span>
-        </Button>
+      ) : null}
+      <div className='p-1.5 bg-gray-50'>
+        <p className='text-foreground/80 line-clamp-1 text-[10px] font-medium'>
+          {file.name}
+        </p>
+        {progress ? <Progress value={progress} className='mt-1 h-1' /> : null}
       </div>
     </div>
   );

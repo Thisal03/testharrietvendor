@@ -19,15 +19,17 @@ export const DEFAULT_METADATA: Metadata = {
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
+  robots: {
+    index: false,
+    follow: false
+  },
   formatDetection: {
     email: false,
     address: false,
     telephone: false
   },
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png'
+    icon: '/favicon.ico'
   },
   openGraph: {
     type: 'website',

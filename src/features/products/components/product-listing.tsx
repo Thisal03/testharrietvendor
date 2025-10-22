@@ -21,8 +21,10 @@ export default async function ProductListingPage({}: ProductListingPage) {
   };
 
   const products = await getProducts(filters);
-  if (!products)
+  
+  if (!products) {
     return <DataTableSkeleton columnCount={5} rowCount={8} filterCount={2} />;
+  }
 
   const totalProducts = products.pagination.total;
 
