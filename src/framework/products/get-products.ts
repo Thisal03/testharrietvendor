@@ -32,6 +32,11 @@ export const getProducts = async (
       queryParams.append(key, value.toString());
     });
 
+    // Exclude trashed products by default
+    if (!params.status) {
+      queryParams.append('status', 'any'); // Fetch all statuses
+    }
+
     queryParams.append('timestamp', Date.now().toString());
 
     const response = await fetch(
@@ -67,9 +72,12 @@ export const getProducts = async (
     };
 
     const data = await response.json();
+    
+    // Filter out trashed products from the response
+    const filteredData = data.filter((product: Product) => product.status !== 'trash');
 
     return {
-      data,
+      data: filteredData,
       pagination
     };
   } catch (error) {

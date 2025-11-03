@@ -10,27 +10,27 @@ export const navItems: NavItem[] = [
     shortcut: ['d', 'd'],
     items: [] // Empty array as there are no child items for Dashboard
   },
-  {
-    title: 'Products',
-    url: '/dashboard/product',
-    icon: 'product',
-    shortcut: ['p', 'p'],
-    isActive: false,
-    items: [
-      {
-        title: 'All Products',
-        url: '/dashboard/product',
-        icon: 'product',
-        shortcut: ['m', 'm']
-      },
-      {
-        title: 'Create Product',
-        shortcut: ['c', 'c'],
-        url: '/dashboard/product/new',
-        icon: 'add'
-      }
-    ]
-  },
+  // {
+  //   title: 'Products',
+  //   url: '/dashboard/product',
+  //   icon: 'product',
+  //   shortcut: ['p', 'p'],
+  //   isActive: false,
+  //   items: [
+  //     {
+  //       title: 'All Products',
+  //       url: '/dashboard/product',
+  //       icon: 'product',
+  //       shortcut: ['m', 'm']
+  //     },
+  //     {
+  //       title: 'Create Product',
+  //       shortcut: ['c', 'c'],
+  //       url: '/dashboard/product/new',
+  //       icon: 'add'
+  //     }
+  //   ]
+  // },
   {
     title: 'Orders',
     url: '/dashboard/order',

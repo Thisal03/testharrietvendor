@@ -16,21 +16,21 @@ import {
 } from '@/components/ui/tooltip';
 import { UseFormReturn } from 'react-hook-form';
 import { HelpCircle } from 'lucide-react';
-import { CategorySelector } from './category-selector';
-import { ProductAttributes } from './product-attributes';
-import { ProductVariations } from './product-variations';
-import { Variation } from './types';
+import { CategorySelector } from '../components/CategorySelector';
+import { ProductAttributes } from './ProductAttributes';
+import { ProductVariations } from './ProductVariations';
+import { Variation } from '../types';
 import { ProductCategory } from '@/framework/products/get-categories';
+import { FormValues } from '../schema';
 
 interface VariableProductSettingsProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<FormValues>;
   selectedCategories: number[];
   setSelectedCategories: (categories: number[]) => void;
   dynamicCategories?: ProductCategory[];
   isCategoriesLoading?: boolean;
   expandedAttributes: Set<string>;
   onToggleAttributeExpansion: (attributeName: string) => void;
-  onForceUpdate: () => void;
   onAddAttribute: () => void;
   onRemoveAttribute: (index: number) => void;
   onAddOption: (attributeIndex: number) => void;
@@ -41,8 +41,36 @@ interface VariableProductSettingsProps {
   onUpdateVariation: (index: number, field: string | Record<string, any>, value?: any) => void;
   onGenerateVariations: () => void;
   vendorId?: number;
+  productId?: number;
 }
 
+/**
+ * Form component for variable product configuration
+ * 
+ * Renders form fields for categories, images, attributes, and variations for variable products.
+ * Manages attribute expansion/collapse and variation generation.
+ * 
+ * @param props - Component props
+ * @param props.form - React Hook Form instance
+ * @param props.selectedCategories - Array of selected category IDs
+ * @param props.setSelectedCategories - Function to update selected categories
+ * @param props.dynamicCategories - Available product categories from WooCommerce
+ * @param props.isCategoriesLoading - Loading state for categories
+ * @param props.expandedAttributes - Set of expanded attribute names
+ * @param props.onToggleAttributeExpansion - Callback to toggle attribute expansion
+ * @param props.onAddAttribute - Callback to add a new attribute
+ * @param props.onRemoveAttribute - Callback to remove an attribute
+ * @param props.onAddOption - Callback to add option to an attribute
+ * @param props.onRemoveOption - Callback to remove option from an attribute
+ * @param props.variations - Array of product variations
+ * @param props.expandedVariations - Set of expanded variation IDs
+ * @param props.onToggleVariationExpansion - Callback to toggle variation expansion
+ * @param props.onUpdateVariation - Callback to update variation data
+ * @param props.onGenerateVariations - Callback to generate variations from attributes
+ * @param props.vendorId - Vendor ID for the product
+ * @param props.productId - Product ID (for edit mode)
+ * @returns JSX element with variable product form fields
+ */
 export function VariableProductSettings({
   form,
   selectedCategories,
@@ -51,7 +79,6 @@ export function VariableProductSettings({
   isCategoriesLoading = false,
   expandedAttributes,
   onToggleAttributeExpansion,
-  onForceUpdate,
   onAddAttribute,
   onRemoveAttribute,
   onAddOption,
@@ -61,7 +88,8 @@ export function VariableProductSettings({
   onToggleVariationExpansion,
   onUpdateVariation,
   onGenerateVariations,
-  vendorId
+  vendorId,
+  productId
 }: VariableProductSettingsProps) {
   return (
     <div className='space-y-6'>
@@ -101,7 +129,7 @@ export function VariableProductSettings({
                   </p>
                   <FormControl>
                     <ProgressiveImageUploader
-                      value={field.value}
+                      value={field.value as File[]}
                       onValueChange={field.onChange}
                       maxFiles={4}
                       maxSize={4 * 1024 * 1024}
@@ -147,7 +175,6 @@ export function VariableProductSettings({
           form={form}
           expandedAttributes={expandedAttributes}
           onToggleAttributeExpansion={onToggleAttributeExpansion}
-          onForceUpdate={onForceUpdate}
           onAddAttribute={onAddAttribute}
           onRemoveAttribute={onRemoveAttribute}
           onAddOption={onAddOption}
@@ -192,6 +219,7 @@ export function VariableProductSettings({
           onGenerateVariations={onGenerateVariations}
           vendorId={vendorId}
           productName={form.watch('name')}
+          productId={productId}
         />
       </div>
     </div>

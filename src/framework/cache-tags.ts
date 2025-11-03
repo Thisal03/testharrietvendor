@@ -32,7 +32,8 @@ export const ORDER_TAGS = {
 export const PRODUCT_TAGS = {
   product: (productId: number) => `product-${productId}`,
   products: (page: number, perPage: number, queryParams: string) =>
-    `products-${page}-${perPage}-${queryParams}`
+    `products-${page}-${perPage}-${queryParams}`,
+  variations: (productId: number) => `variations-${productId}`
 };
 
 export const TRACKING_TAGS = {

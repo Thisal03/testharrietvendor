@@ -14,6 +14,10 @@ interface SKUInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
   onValidationChange?: (isValid: boolean) => void;
   vendorId?: number;
   productName?: string;
+  productId?: number; // Current product ID (for edit mode)
+  variationId?: number; // Current variation ID (for variation SKU validation)
+  currentVariationSKU?: string; // Current variation SKU (to exclude from disabled variation check)
+  generateButtonDisabled?: boolean; // If true, only disable the generate button (not the input)
 }
 
 export function SKUInput({ 
@@ -22,6 +26,10 @@ export function SKUInput({
   onValidationChange,
   vendorId,
   productName,
+  productId,
+  variationId,
+  currentVariationSKU,
+  generateButtonDisabled,
   className,
   ...props 
 }: SKUInputProps) {
@@ -30,6 +38,7 @@ export function SKUInput({
   const [validationMessage, setValidationMessage] = React.useState<string>('');
   const [debouncedValue, setDebouncedValue] = React.useState(value);
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   // Generate unique SKU
   const generateSKU = () => {
@@ -47,7 +56,7 @@ export function SKUInput({
 
     timeoutRef.current = setTimeout(() => {
       setDebouncedValue(value);
-    }, 500); // 500ms delay
+    }, 300); // 300ms debounce for better UX
 
     return () => {
       if (timeoutRef.current) {
@@ -66,39 +75,79 @@ export function SKUInput({
         return;
       }
 
+      // Cancel previous request if still pending
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController();
+      const currentController = abortControllerRef.current;
+
       setIsValidating(true);
       setValidationMessage('Checking SKU availability...');
 
       try {
-        const isAvailable = await checkSKUAvailability(debouncedValue.trim());
+        // Check SKU availability including disabled variations in meta_data
+        const result = await checkSKUAvailability(
+          debouncedValue.trim(), 
+          productId, 
+          variationId,
+          true, // checkDisabledVariations = true
+          currentVariationSKU // excludeVariationSku - current variation's SKU to avoid self-conflict
+        );
         
-        if (isAvailable) {
+        // Check if request was cancelled
+        if (currentController.signal.aborted) {
+          return;
+        }
+        
+        if (result.isAvailable) {
           setIsValid(true);
           setValidationMessage('SKU is available');
           onValidationChange?.(true);
         } else {
           setIsValid(false);
-          setValidationMessage('SKU is already taken. Please choose a different one.');
+          const message = result.error || 'SKU is already taken. Please choose a different one.';
+          setValidationMessage(message);
           onValidationChange?.(false);
         }
       } catch (error) {
+        // Ignore AbortError (request was cancelled)
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        
         console.error('SKU validation error:', error);
         setIsValid(null);
         setValidationMessage('Unable to validate SKU');
         onValidationChange?.(true); // Allow submission if we can't validate
       } finally {
-        setIsValidating(false);
+        // Only update state if this is still the current request
+        if (!currentController.signal.aborted) {
+          setIsValidating(false);
+        }
       }
     };
 
     validateSKU();
-  }, [debouncedValue, onValidationChange]);
 
-  // Cleanup timeout on unmount
+    // Cleanup: Cancel request on unmount or when dependencies change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [debouncedValue, onValidationChange, productId, variationId, currentVariationSKU]);
+
+  // Cleanup on unmount
   React.useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, []);
@@ -156,6 +205,7 @@ export function SKUInput({
             variant="outline"
             size="icon"
             onClick={generateSKU}
+            disabled={generateButtonDisabled}
             title="Generate unique SKU"
           >
             <RefreshCw className="size-4" />

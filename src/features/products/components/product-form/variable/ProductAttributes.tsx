@@ -15,16 +15,16 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip';
-import { Plus, Trash, Check, ChevronDown } from 'lucide-react';
+import { Plus, Trash, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEFAULT_ATTRIBUTE_OPTIONS } from './constants';
+import { DEFAULT_ATTRIBUTE_OPTIONS, MAX_PRODUCT_ATTRIBUTES } from '../utils/constants';
 import { UseFormReturn } from 'react-hook-form';
+import { FormValues } from '../schema';
 
 interface ProductAttributesProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<FormValues>;
   expandedAttributes: Set<string>;
   onToggleAttributeExpansion: (attributeName: string) => void;
-  onForceUpdate: () => void;
   onAddAttribute: () => void;
   onRemoveAttribute: (index: number) => void;
   onAddOption: (attributeIndex: number) => void;
@@ -32,21 +32,38 @@ interface ProductAttributesProps {
   onGenerateVariations?: () => void;
 }
 
+/**
+ * Component for managing product attributes in variable products
+ * 
+ * Provides UI for creating, editing, and managing product attributes including
+ * Size and Color default attributes, plus custom attributes.
+ * Auto-generates variations when attributes are modified.
+ * 
+ * @param props - Component props
+ * @param props.form - React Hook Form instance
+ * @param props.expandedAttributes - Set of expanded attribute names
+ * @param props.onToggleAttributeExpansion - Callback to toggle attribute expansion
+ * @param props.onAddAttribute - Callback to add a new custom attribute
+ * @param props.onRemoveAttribute - Callback to remove an attribute
+ * @param props.onAddOption - Callback to add an option to an attribute
+ * @param props.onRemoveOption - Callback to remove an option from an attribute
+ * @param props.onGenerateVariations - Callback to trigger variation generation
+ * @returns JSX element with attribute management UI
+ */
 export function ProductAttributes({
   form,
   expandedAttributes,
   onToggleAttributeExpansion,
-  onForceUpdate,
   onAddAttribute,
   onRemoveAttribute,
   onAddOption,
   onRemoveOption,
   onGenerateVariations
 }: ProductAttributesProps) {
-  // Calculate total attributes count
-  const attributes = form.getValues('attributes') || [];
+  // Watch attributes to trigger re-renders when they change
+  const attributes = form.watch('attributes') || [];
   const totalAttributes = attributes.length;
-  const canAddMoreAttributes = totalAttributes < 3;
+  const canAddMoreAttributes = totalAttributes < MAX_PRODUCT_ATTRIBUTES;
 
   // Check if default attributes are selected
   const sizeAttr = attributes.find((attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size');
@@ -55,8 +72,8 @@ export function ProductAttributes({
   const isColorSelected = colorAttr && colorAttr.options && colorAttr.options.length > 0;
 
   // Determine if default attributes should be disabled
-  const isSizeDisabled = !isSizeSelected && totalAttributes >= 3;
-  const isColorDisabled = !isColorSelected && totalAttributes >= 3;
+  const isSizeDisabled = !isSizeSelected && totalAttributes >= MAX_PRODUCT_ATTRIBUTES;
+  const isColorDisabled = !isColorSelected && totalAttributes >= MAX_PRODUCT_ATTRIBUTES;
 
   return (
     <TooltipProvider>
@@ -68,7 +85,6 @@ export function ProductAttributes({
           form={form}
           isExpanded={expandedAttributes.has('size')}
           onToggle={() => onToggleAttributeExpansion('size')}
-          onForceUpdate={onForceUpdate}
           onGenerateVariations={onGenerateVariations}
           isDisabled={isSizeDisabled}
         />
@@ -78,7 +94,6 @@ export function ProductAttributes({
           form={form}
           isExpanded={expandedAttributes.has('color')}
           onToggle={() => onToggleAttributeExpansion('color')}
-          onForceUpdate={onForceUpdate}
           onGenerateVariations={onGenerateVariations}
           isDisabled={isColorDisabled}
         />
@@ -87,9 +102,7 @@ export function ProductAttributes({
       {/* Custom Attributes */}
       <CustomAttributes
         form={form}
-        onForceUpdate={onForceUpdate}
         onRemoveAttribute={onRemoveAttribute}
-        onAddOption={onAddOption}
         onRemoveOption={onRemoveOption}
         onGenerateVariations={onGenerateVariations}
       />
@@ -110,7 +123,7 @@ export function ProductAttributes({
       {/* Show message when limit is reached */}
       {!canAddMoreAttributes && (
         <div className='text-sm text-muted-foreground text-center py-2'>
-          Maximum of 3 attributes allowed. Remove an attribute to add a new one.
+          Maximum of {MAX_PRODUCT_ATTRIBUTES} attributes allowed. Remove an attribute to add a new one.
         </div>
       )}
 
@@ -130,17 +143,18 @@ function SizeAttribute({
   form,
   isExpanded,
   onToggle,
-  onForceUpdate,
   onGenerateVariations,
   isDisabled = false
 }: {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<FormValues>;
   isExpanded: boolean;
   onToggle: () => void;
-  onForceUpdate: () => void;
   onGenerateVariations?: () => void;
   isDisabled?: boolean;
 }) {
+  // Watch attributes to trigger re-renders
+  const attributes = form.watch('attributes') || [];
+  
   return (
     <div className={`rounded-lg border bg-white dark:bg-gray-800 overflow-hidden h-fit shadow-sm transition-shadow ${
       isDisabled 
@@ -160,7 +174,6 @@ function SizeAttribute({
             <h5 className='font-medium mb-1'>Size</h5>
             <p className='text-sm text-gray-500'>
               {(() => {
-                const attributes = form.getValues('attributes') || [];
                 const sizeAttr = attributes.find((attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size');
                 const selectedCount = sizeAttr?.options?.length || 0;
                 return selectedCount > 0
@@ -179,7 +192,6 @@ function SizeAttribute({
         <CollapsibleContent className='p-4 pt-0'>
           <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6'>
             {DEFAULT_ATTRIBUTE_OPTIONS.size.map((option) => {
-              const attributes = form.getValues('attributes') || [];
               const sizeAttr = attributes.find((attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size');
               const isSelected = sizeAttr?.options?.includes(option.value) || false;
 
@@ -194,42 +206,38 @@ function SizeAttribute({
                   )}
                   onClick={() => {
                     if (isDisabled) return;
-                    const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                    let sizeAttrIndex = attributes.findIndex(
+                    const updatedAttributes = [...attributes]; // Create new array
+                    let sizeAttrIndex = updatedAttributes.findIndex(
                       (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size'
                     );
 
                     if (sizeAttrIndex === -1) {
-                      attributes.push({
+                      updatedAttributes.push({
                         name: 'Size',
-                        position: attributes.length,
+                        position: updatedAttributes.length,
                         visible: true,
                         variation: true,
                         options: [option.value]
                       });
                     } else {
-                      const currentOptions = attributes[sizeAttrIndex].options || [];
+                      const currentOptions = updatedAttributes[sizeAttrIndex].options || [];
                       if (currentOptions.includes(option.value)) {
-                        attributes[sizeAttrIndex] = {
-                          ...attributes[sizeAttrIndex],
+                        updatedAttributes[sizeAttrIndex] = {
+                          ...updatedAttributes[sizeAttrIndex],
                           options: currentOptions.filter((opt: string) => opt !== option.value)
                         };
-                        if (attributes[sizeAttrIndex].options.length === 0) {
-                          attributes.splice(sizeAttrIndex, 1);
+                        if (updatedAttributes[sizeAttrIndex].options.length === 0) {
+                          updatedAttributes.splice(sizeAttrIndex, 1);
                         }
                       } else {
-                        attributes[sizeAttrIndex] = {
-                          ...attributes[sizeAttrIndex],
+                        updatedAttributes[sizeAttrIndex] = {
+                          ...updatedAttributes[sizeAttrIndex],
                           options: [...currentOptions, option.value]
                         };
                       }
                     }
-                    console.log('📝 Updated attributes (Size):', attributes);
-                    form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                    onForceUpdate();
-                    if (onGenerateVariations) {
-                      setTimeout(() => onGenerateVariations(), 150);
-                    }
+                    form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                    // Auto-generation via watch subscription in useVariationHandlers
                   }}
                 >
                   {/* {isSelected && (
@@ -243,7 +251,6 @@ function SizeAttribute({
 
           {/* Selected Sizes Display */}
           {(() => {
-            const attributes = form.getValues('attributes') || [];
             const sizeAttr = attributes.find((attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size');
             const selectedSizes = sizeAttr?.options || [];
             
@@ -262,23 +269,20 @@ function SizeAttribute({
                           size='sm'
                           className='h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900'
                           onClick={() => {
-                            const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                            const sizeAttrIndex = attributes.findIndex(
+                            const updatedAttributes = [...attributes]; // Create new array
+                            const sizeAttrIndex = updatedAttributes.findIndex(
                               (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size'
                             );
                             if (sizeAttrIndex !== -1) {
-                              attributes[sizeAttrIndex] = {
-                                ...attributes[sizeAttrIndex],
-                                options: attributes[sizeAttrIndex].options.filter((opt: string) => opt !== size)
+                              updatedAttributes[sizeAttrIndex] = {
+                                ...updatedAttributes[sizeAttrIndex],
+                                options: updatedAttributes[sizeAttrIndex].options.filter((opt: string) => opt !== size)
                               };
-                              if (attributes[sizeAttrIndex].options.length === 0) {
-                                attributes.splice(sizeAttrIndex, 1);
+                              if (updatedAttributes[sizeAttrIndex].options.length === 0) {
+                                updatedAttributes.splice(sizeAttrIndex, 1);
                               }
-                              form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                              onForceUpdate();
-                              if (onGenerateVariations) {
-                                setTimeout(() => onGenerateVariations(), 150);
-                              }
+                              form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                              // Auto-generation via watch subscription in useVariationHandlers
                             }
                           }}
                         >
@@ -307,33 +311,30 @@ function SizeAttribute({
                     e.preventDefault();
                     const input = e.currentTarget;
                     if (input && input.value.trim()) {
-                      const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                      let sizeAttrIndex = attributes.findIndex(
+                      const updatedAttributes = [...attributes]; // Create new array
+                      let sizeAttrIndex = updatedAttributes.findIndex(
                         (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size'
                       );
 
                       if (sizeAttrIndex === -1) {
-                        attributes.push({
+                        updatedAttributes.push({
                           name: 'Size',
-                          position: attributes.length,
+                          position: updatedAttributes.length,
                           visible: true,
                           variation: true,
                           options: [input.value.trim()]
                         });
                       } else {
-                        const currentOptions = attributes[sizeAttrIndex].options || [];
+                        const currentOptions = updatedAttributes[sizeAttrIndex].options || [];
                         if (!currentOptions.includes(input.value.trim())) {
-                          attributes[sizeAttrIndex] = {
-                            ...attributes[sizeAttrIndex],
+                          updatedAttributes[sizeAttrIndex] = {
+                            ...updatedAttributes[sizeAttrIndex],
                             options: [...currentOptions, input.value.trim()]
                           };
                         }
                       }
-                      form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                      onForceUpdate();
-                      if (onGenerateVariations) {
-                        setTimeout(() => onGenerateVariations(), 150);
-                      }
+                      form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                      // Auto-generation via watch subscription in useVariationHandlers
                       input.value = '';
                     }
                   }
@@ -348,33 +349,30 @@ function SizeAttribute({
                   if (isDisabled) return;
                   const input = document.getElementById('custom-size-input') as HTMLInputElement;
                   if (input && input.value.trim()) {
-                    const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                    let sizeAttrIndex = attributes.findIndex(
+                    const updatedAttributes = [...attributes]; // Create new array
+                    let sizeAttrIndex = updatedAttributes.findIndex(
                       (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'size'
                     );
 
                     if (sizeAttrIndex === -1) {
-                      attributes.push({
+                      updatedAttributes.push({
                         name: 'Size',
-                        position: attributes.length,
+                        position: updatedAttributes.length,
                         visible: true,
                         variation: true,
                         options: [input.value.trim()]
                       });
                     } else {
-                      const currentOptions = attributes[sizeAttrIndex].options || [];
+                      const currentOptions = updatedAttributes[sizeAttrIndex].options || [];
                       if (!currentOptions.includes(input.value.trim())) {
-                        attributes[sizeAttrIndex] = {
-                          ...attributes[sizeAttrIndex],
+                        updatedAttributes[sizeAttrIndex] = {
+                          ...updatedAttributes[sizeAttrIndex],
                           options: [...currentOptions, input.value.trim()]
                         };
                       }
                     }
-                    form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                    onForceUpdate();
-                    if (onGenerateVariations) {
-                      setTimeout(() => onGenerateVariations(), 150);
-                    }
+                    form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                    // Auto-generation via watch subscription in useVariationHandlers
                     input.value = '';
                   }
                 }}
@@ -394,17 +392,18 @@ function ColorAttribute({
   form,
   isExpanded,
   onToggle,
-  onForceUpdate,
   onGenerateVariations,
   isDisabled = false
 }: {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<FormValues>;
   isExpanded: boolean;
   onToggle: () => void;
-  onForceUpdate: () => void;
   onGenerateVariations?: () => void;
   isDisabled?: boolean;
 }) {
+  // Watch attributes to trigger re-renders
+  const attributes = form.watch('attributes') || [];
+  
   return (
     <div className={`rounded-lg border bg-white dark:bg-gray-800 overflow-hidden h-fit shadow-sm transition-shadow ${
       isDisabled 
@@ -424,7 +423,6 @@ function ColorAttribute({
             <h5 className='font-medium mb-1'>Color</h5>
             <p className='text-sm text-gray-500'>
               {(() => {
-                const attributes = form.getValues('attributes') || [];
                 const colorAttr = attributes.find((attr: any) => 'name' in attr && attr.name.toLowerCase() === 'color');
                 const selectedCount = colorAttr?.options?.length || 0;
                 return selectedCount > 0
@@ -443,7 +441,6 @@ function ColorAttribute({
         <CollapsibleContent className='p-4 pt-0'>
           <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4'>
             {DEFAULT_ATTRIBUTE_OPTIONS.color.map((option) => {
-              const attributes = form.getValues('attributes') || [];
               const colorAttr = attributes.find((attr: any) => 'name' in attr && attr.name.toLowerCase() === 'color');
               const isSelected = colorAttr?.options?.includes(option.value) || false;
 
@@ -458,42 +455,38 @@ function ColorAttribute({
                   )}
                   onClick={() => {
                     if (isDisabled) return;
-                    const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                    let colorAttrIndex = attributes.findIndex(
+                    const updatedAttributes = [...attributes]; // Create new array
+                    let colorAttrIndex = updatedAttributes.findIndex(
                       (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'color'
                     );
 
                     if (colorAttrIndex === -1) {
-                      attributes.push({
+                      updatedAttributes.push({
                         name: 'Color',
-                        position: attributes.length,
+                        position: updatedAttributes.length,
                         visible: true,
                         variation: true,
                         options: [option.value]
                       });
                     } else {
-                      const currentOptions = attributes[colorAttrIndex].options || [];
+                      const currentOptions = updatedAttributes[colorAttrIndex].options || [];
                       if (currentOptions.includes(option.value)) {
-                        attributes[colorAttrIndex] = {
-                          ...attributes[colorAttrIndex],
+                        updatedAttributes[colorAttrIndex] = {
+                          ...updatedAttributes[colorAttrIndex],
                           options: currentOptions.filter((opt: string) => opt !== option.value)
                         };
-                        if (attributes[colorAttrIndex].options.length === 0) {
-                          attributes.splice(colorAttrIndex, 1);
+                        if (updatedAttributes[colorAttrIndex].options.length === 0) {
+                          updatedAttributes.splice(colorAttrIndex, 1);
                         }
                       } else {
-                        attributes[colorAttrIndex] = {
-                          ...attributes[colorAttrIndex],
+                        updatedAttributes[colorAttrIndex] = {
+                          ...updatedAttributes[colorAttrIndex],
                           options: [...currentOptions, option.value]
                         };
                       }
                     }
-                    console.log('📝 Updated attributes (Color):', attributes);
-                    form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                    onForceUpdate();
-                    if (onGenerateVariations) {
-                      setTimeout(() => onGenerateVariations(), 150);
-                    }
+                    form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                    // Auto-generation via watch subscription in useVariationHandlers
                   }}
                 >
                   {/* {isSelected && (
@@ -507,7 +500,6 @@ function ColorAttribute({
 
           {/* Selected Colors Display */}
           {(() => {
-            const attributes = form.getValues('attributes') || [];
             const colorAttr = attributes.find((attr: any) => 'name' in attr && attr.name.toLowerCase() === 'color');
             const selectedColors = colorAttr?.options || [];
             
@@ -526,23 +518,20 @@ function ColorAttribute({
                           size='sm'
                           className='h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900'
                           onClick={() => {
-                            const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                            const colorAttrIndex = attributes.findIndex(
+                            const updatedAttributes = [...attributes]; // Create new array
+                            const colorAttrIndex = updatedAttributes.findIndex(
                               (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'color'
                             );
                             if (colorAttrIndex !== -1) {
-                              attributes[colorAttrIndex] = {
-                                ...attributes[colorAttrIndex],
-                                options: attributes[colorAttrIndex].options.filter((opt: string) => opt !== color)
+                              updatedAttributes[colorAttrIndex] = {
+                                ...updatedAttributes[colorAttrIndex],
+                                options: updatedAttributes[colorAttrIndex].options.filter((opt: string) => opt !== color)
                               };
-                              if (attributes[colorAttrIndex].options.length === 0) {
-                                attributes.splice(colorAttrIndex, 1);
+                              if (updatedAttributes[colorAttrIndex].options.length === 0) {
+                                updatedAttributes.splice(colorAttrIndex, 1);
                               }
-                              form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                              onForceUpdate();
-                              if (onGenerateVariations) {
-                                setTimeout(() => onGenerateVariations(), 150);
-                              }
+                              form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                              // Auto-generation via watch subscription in useVariationHandlers
                             }
                           }}
                         >
@@ -571,33 +560,30 @@ function ColorAttribute({
                     e.preventDefault();
                     const input = e.currentTarget;
                     if (input && input.value.trim()) {
-                      const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                      let colorAttrIndex = attributes.findIndex(
+                      const updatedAttributes = [...attributes]; // Create new array
+                      let colorAttrIndex = updatedAttributes.findIndex(
                         (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'color'
                       );
 
                       if (colorAttrIndex === -1) {
-                        attributes.push({
+                        updatedAttributes.push({
                           name: 'Color',
-                          position: attributes.length,
+                          position: updatedAttributes.length,
                           visible: true,
                           variation: true,
                           options: [input.value.trim()]
                         });
                       } else {
-                        const currentOptions = attributes[colorAttrIndex].options || [];
+                        const currentOptions = updatedAttributes[colorAttrIndex].options || [];
                         if (!currentOptions.includes(input.value.trim())) {
-                          attributes[colorAttrIndex] = {
-                            ...attributes[colorAttrIndex],
+                          updatedAttributes[colorAttrIndex] = {
+                            ...updatedAttributes[colorAttrIndex],
                             options: [...currentOptions, input.value.trim()]
                           };
                         }
                       }
-                      form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                      onForceUpdate();
-                      if (onGenerateVariations) {
-                        setTimeout(() => onGenerateVariations(), 150);
-                      }
+                      form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                      // Auto-generation via watch subscription in useVariationHandlers
                       input.value = '';
                     }
                   }
@@ -612,33 +598,30 @@ function ColorAttribute({
                   if (isDisabled) return;
                   const input = document.getElementById('custom-color-input') as HTMLInputElement;
                   if (input && input.value.trim()) {
-                    const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                    let colorAttrIndex = attributes.findIndex(
+                    const updatedAttributes = [...attributes]; // Create new array
+                    let colorAttrIndex = updatedAttributes.findIndex(
                       (attr: any) => 'name' in attr && attr.name.toLowerCase() === 'color'
                     );
 
                     if (colorAttrIndex === -1) {
-                      attributes.push({
+                      updatedAttributes.push({
                         name: 'Color',
-                        position: attributes.length,
+                        position: updatedAttributes.length,
                         visible: true,
                         variation: true,
                         options: [input.value.trim()]
                       });
                     } else {
-                      const currentOptions = attributes[colorAttrIndex].options || [];
+                      const currentOptions = updatedAttributes[colorAttrIndex].options || [];
                       if (!currentOptions.includes(input.value.trim())) {
-                        attributes[colorAttrIndex] = {
-                          ...attributes[colorAttrIndex],
+                        updatedAttributes[colorAttrIndex] = {
+                          ...updatedAttributes[colorAttrIndex],
                           options: [...currentOptions, input.value.trim()]
                         };
                       }
                     }
-                    form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                    onForceUpdate();
-                    if (onGenerateVariations) {
-                      setTimeout(() => onGenerateVariations(), 150);
-                    }
+                    form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                    // Auto-generation via watch subscription in useVariationHandlers
                     input.value = '';
                   }
                 }}
@@ -656,47 +639,55 @@ function ColorAttribute({
 // Custom Attributes Component
 function CustomAttributes({
   form,
-  onForceUpdate,
   onRemoveAttribute,
-  onAddOption,
   onRemoveOption,
   onGenerateVariations
 }: {
-  form: UseFormReturn<any>;
-  onForceUpdate: () => void;
+  form: UseFormReturn<FormValues>;
   onRemoveAttribute: (index: number) => void;
-  onAddOption: (attributeIndex: number) => void;
   onRemoveOption: (attributeIndex: number, optionIndex: number) => void;
   onGenerateVariations?: () => void;
 }) {
   const [newOptionValues, setNewOptionValues] = React.useState<Record<number, string>>({});
 
-  // Clean up reserved attribute names automatically
+  // Watch attributes to trigger re-renders
+  const attributes = form.watch('attributes') || [];
+
+  // Clean up reserved attribute names automatically - normalize to canonical forms
   React.useEffect(() => {
-    const attributes = form.getValues('attributes') || [];
-    const reservedNames = ['size', 'color', 'sizes', 'colors'];
+    const nameMappings: Record<string, string> = {
+      'sizes': 'Size',
+      'colors': 'Color',
+      'colours': 'Color',
+      'colour': 'Color'
+    };
     
-    const hasReservedNames = attributes.some((attr: any, index: number) => {
+    const needsRenaming = attributes.some((attr: any) => {
       const attrName = 'name' in attr ? attr.name.toLowerCase() : '';
-      return reservedNames.includes(attrName);
+      return attrName in nameMappings;
     });
 
-    if (hasReservedNames) {
-      // Remove attributes with reserved names
-      const cleanedAttributes = attributes.filter((attr: any) => {
+    if (needsRenaming) {
+      // Map reserved names to canonical forms
+      const cleanedAttributes = attributes.map((attr: any) => {
         const attrName = 'name' in attr ? attr.name.toLowerCase() : '';
-        return !reservedNames.includes(attrName);
+        if (attrName in nameMappings) {
+          return {
+            ...attr,
+            name: nameMappings[attrName]
+          };
+        }
+        return attr;
       });
       
-      console.log('🧹 Removed reserved attribute names:', cleanedAttributes);
       form.setValue('attributes', cleanedAttributes, { shouldDirty: true, shouldTouch: true });
-      onForceUpdate();
+      // Zustand automatically triggers re-renders on state change
     }
-  }, [form, onForceUpdate]);
+  }, [attributes, form]);
 
   return (
     <div className='space-y-3'>
-      {form.getValues('attributes')?.map((attribute: any, attrIndex: number) => {
+      {attributes.map((attribute: any, attrIndex: number) => {
         const attributeName = 'name' in attribute ? attribute.name : `Attribute ${attrIndex + 1}`;
         
         // Skip Size and Color as they're handled above
@@ -716,18 +707,17 @@ function CustomAttributes({
                    
                    // Don't allow reserved names
                    if (reservedNames.includes(newName.toLowerCase())) {
-                     console.log('⚠️ Reserved attribute name not allowed:', newName);
                      return;
                    }
                    
-                   const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                   if ('name' in attributes[attrIndex]) {
-                     attributes[attrIndex] = {
-                       ...attributes[attrIndex],
+                   const updatedAttributes = [...attributes]; // Create new array
+                   if ('name' in updatedAttributes[attrIndex]) {
+                     updatedAttributes[attrIndex] = {
+                       ...updatedAttributes[attrIndex],
                        name: newName
                      };
-                     form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                     onForceUpdate();
+                     form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                     // Zustand automatically triggers re-renders on state change
                    }
                  }}
                  placeholder='Attribute name (e.g., Material)'
@@ -755,13 +745,13 @@ function CustomAttributes({
                          checked={attribute.visible}
                          disabled={!attribute.options || attribute.options.length === 0}
                          onCheckedChange={(checked) => {
-                           const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                           attributes[attrIndex] = {
-                             ...attributes[attrIndex],
+                           const updatedAttributes = [...attributes]; // Create new array
+                           updatedAttributes[attrIndex] = {
+                             ...updatedAttributes[attrIndex],
                              visible: checked
                            };
-                           form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                           onForceUpdate();
+                           form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                           // Zustand automatically triggers re-renders on state change
                          }}
                        />
                      </div>
@@ -783,17 +773,13 @@ function CustomAttributes({
                          checked={attribute.variation}
                          disabled={!attribute.options || attribute.options.length === 0}
                          onCheckedChange={(checked) => {
-                           const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                           attributes[attrIndex] = {
-                             ...attributes[attrIndex],
+                           const updatedAttributes = [...attributes]; // Create new array
+                           updatedAttributes[attrIndex] = {
+                             ...updatedAttributes[attrIndex],
                              variation: checked
                            };
-                           console.log('🔄 Toggled variation switch for', attributeName, ':', checked);
-                           form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
-                           onForceUpdate();
-                           if (onGenerateVariations) {
-                             setTimeout(() => onGenerateVariations(), 150);
-                           }
+                           form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
+                           // Auto-generation via watch subscription in useVariationHandlers
                          }}
                        />
                      </div>
@@ -840,18 +826,15 @@ function CustomAttributes({
                       e.preventDefault();
                       const value = newOptionValues[attrIndex]?.trim();
                       if (value) {
-                        const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                        const currentOptions = attributes[attrIndex].options || [];
-                        attributes[attrIndex] = {
-                          ...attributes[attrIndex],
+                        const updatedAttributes = [...attributes]; // Create new array
+                        const currentOptions = updatedAttributes[attrIndex].options || [];
+                        updatedAttributes[attrIndex] = {
+                          ...updatedAttributes[attrIndex],
                           options: [...currentOptions, value]
                         };
-                        form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
+                        form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
                         setNewOptionValues({ ...newOptionValues, [attrIndex]: '' });
-                        onForceUpdate();
-                        if (onGenerateVariations) {
-                          setTimeout(() => onGenerateVariations(), 150);
-                        }
+                        // Auto-generation via watch subscription in useVariationHandlers
                       }
                     }
                   }}
@@ -863,18 +846,15 @@ function CustomAttributes({
                   onClick={() => {
                     const value = newOptionValues[attrIndex]?.trim();
                     if (value) {
-                      const attributes = [...(form.getValues('attributes') || [])]; // Create new array
-                      const currentOptions = attributes[attrIndex].options || [];
-                      attributes[attrIndex] = {
-                        ...attributes[attrIndex],
+                      const updatedAttributes = [...attributes]; // Create new array
+                      const currentOptions = updatedAttributes[attrIndex].options || [];
+                      updatedAttributes[attrIndex] = {
+                        ...updatedAttributes[attrIndex],
                         options: [...currentOptions, value]
                       };
-                      form.setValue('attributes', attributes, { shouldDirty: true, shouldTouch: true });
+                      form.setValue('attributes', updatedAttributes, { shouldDirty: true, shouldTouch: true });
                       setNewOptionValues({ ...newOptionValues, [attrIndex]: '' });
-                      onForceUpdate();
-                      if (onGenerateVariations) {
-                        setTimeout(() => onGenerateVariations(), 150);
-                      }
+                      // Auto-generation via watch subscription in useVariationHandlers
                     }
                   }}
                 >

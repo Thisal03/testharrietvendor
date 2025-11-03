@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { FloatingLabelInput as Input } from '@/components/ui/floating-input';
 import { SKUInput } from '@/components/ui/sku-input';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ProgressiveImageUploader } from '@/components/progressive-image-uploader';
 import {
@@ -20,28 +19,44 @@ import {
 } from '@/components/ui/select';
 import { ChevronDown, HelpCircle, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Variation } from './types';
+import { Variation } from '../types';
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface VariationCardProps {
   variation: Variation;
-  index: number;
   isExpanded: boolean;
   onToggleExpansion: () => void;
   onUpdate: (field: string | Record<string, any>, value?: any) => void;
   vendorId?: number;
   productName?: string;
+  productId?: number;
 }
 
+/**
+ * Individual variation card component for displaying and editing a single variation
+ * 
+ * Collapsible card showing variation details including price, inventory, SKU,
+ * weight, and images. Supports enabling/disabling variations.
+ * 
+ * @param props - Component props
+ * @param props.variation - Variation data to display and edit
+ * @param props.isExpanded - Whether the variation card is expanded
+ * @param props.onToggleExpansion - Callback to toggle expansion state
+ * @param props.onUpdate - Callback to update variation fields
+ * @param props.vendorId - Vendor ID for the product
+ * @param props.productName - Name of the product (for context)
+ * @param props.productId - Product ID (for edit mode SKU validation)
+ * @returns JSX element with collapsible variation card
+ */
 export function VariationCard({
   variation,
-  index,
   isExpanded,
   onToggleExpansion,
   onUpdate,
   vendorId,
-  productName
+  productName,
+  productId
 }: VariationCardProps) {
   const imagePreview = React.useMemo(() => {
     if (!variation.image) return null;
@@ -82,9 +97,11 @@ export function VariationCard({
           <div className='flex items-center justify-between flex-1'>
             <div className='flex items-center gap-3'>
               <h5 className='font-medium'>
-                {Object.entries(variation.attributes)
-                  .map(([key, val]) => `${key}: ${val}`)
-                  .join(' / ')}
+                {variation.attributes && Object.keys(variation.attributes).length > 0
+                  ? Object.entries(variation.attributes)
+                      .map(([key, val]) => `${key}: ${val}`)
+                      .join(' / ')
+                  : 'No attributes'}
               </h5>
             </div>
             <div className='flex items-center gap-3'>
@@ -121,7 +138,7 @@ export function VariationCard({
               </p>
               <div className='max-w-xs'>
                 <ProgressiveImageUploader
-                  value={variation.image ? [variation.image] : []}
+                  value={variation.image ? [variation.image as any] : []}
                   onValueChange={(files) => {
                     const fileArray = Array.isArray(files) ? files : [];
                     const file = fileArray[0] || null;
@@ -133,7 +150,7 @@ export function VariationCard({
                   }}
                   maxFiles={1}
                   maxSize={4 * 1024 * 1024}
-                  disabled={!variation.enabled}
+                  disabled={false}
                 />
               </div>
             </div>
@@ -254,7 +271,6 @@ export function VariationCard({
                   <Select
                     value={variation.stock_status}
                     onValueChange={(value: 'instock' | 'outofstock') => {
-                      console.log('Stock status changing to:', value);
                       // If changing to out of stock, update all fields at once
                       if (value === 'outofstock') {
                         onUpdate({
@@ -338,13 +354,16 @@ export function VariationCard({
                       </Tooltip>
                     </div>
                     <SKUInput
-                      value={variation.sku}
+                      value={variation.sku || ''}
                       onChange={(value) => onUpdate('sku', value)}
                       vendorId={vendorId}
+                      currentVariationSKU={variation.sku}
                       productName={productName}
+                      productId={productId}
+                      variationId={variation.variation_id}
                       placeholder='Product code'
                       className='h-9'
-                      disabled={!variation.enabled}
+                      generateButtonDisabled={!variation.enabled}
                     />
                   </div>
 

@@ -1,6 +1,15 @@
 import { getAccessToken } from '@/lib/services/token';
 import { config } from '../config';
 
+/**
+ * Product image data structure
+ * 
+ * @interface ProductImage
+ * @property {number} id - WordPress attachment ID
+ * @property {string} src - Full URL to the image
+ * @property {string} name - Image file name
+ * @property {string} alt - Alt text for accessibility
+ */
 export interface ProductImage {
   id: number;
   src: string;
@@ -8,6 +17,23 @@ export interface ProductImage {
   alt: string;
 }
 
+/**
+ * Fetches all images associated with a product
+ * 
+ * @param {number} productId - The product ID
+ * @returns {Promise<ProductImage[]>} Array of product images (featured + gallery)
+ * 
+ * @remarks
+ * Fetches both featured image and gallery images from the product.
+ * Returns an empty array on error to prevent crashes.
+ * Uses caching with 5-minute revalidation for performance.
+ * 
+ * @example
+ * ```typescript
+ * const images = await getProductImages(123);
+ * console.log(`Product has ${images.length} images`);
+ * ```
+ */
 export const getProductImages = async (productId: number): Promise<ProductImage[]> => {
   try {
     const token = await getAccessToken();
@@ -36,7 +62,7 @@ export const getProductImages = async (productId: number): Promise<ProductImage[
       try {
         const errorData = await response.json();
         console.error('Error details:', errorData);
-      } catch (e) {
+      } catch (_e) {
         // Ignore JSON parse errors
       }
       return [];

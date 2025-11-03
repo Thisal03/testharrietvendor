@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/tooltip';
 import { UseFormReturn } from 'react-hook-form';
 import { HelpCircle, RefreshCw } from 'lucide-react';
-import { CategorySelector } from './category-selector';
+import { CategorySelector } from '../components/CategorySelector';
 import { ProductCategory } from '@/framework/products/get-categories';
 import {
   Select,
@@ -27,17 +27,36 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { FormValues } from '../schema';
 
 interface SimpleProductSettingsProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<FormValues>;
   selectedCategories: number[];
   setSelectedCategories: (categories: number[]) => void;
   dynamicCategories?: ProductCategory[];
   isCategoriesLoading?: boolean;
   onSKUValidationChange?: (isValid: boolean) => void;
   vendorId?: number;
+  productId?: number;
 }
 
+/**
+ * Form component for simple product configuration
+ * 
+ * Renders form fields for categories, images, pricing, inventory, and SKU for simple products.
+ * Handles SKU validation and provides tooltips for user guidance.
+ * 
+ * @param props - Component props
+ * @param props.form - React Hook Form instance
+ * @param props.selectedCategories - Array of selected category IDs
+ * @param props.setSelectedCategories - Function to update selected categories
+ * @param props.dynamicCategories - Available product categories from WooCommerce
+ * @param props.isCategoriesLoading - Loading state for categories
+ * @param props.onSKUValidationChange - Callback when SKU validation state changes
+ * @param props.vendorId - Vendor ID for the product
+ * @param props.productId - Product ID (for edit mode SKU validation)
+ * @returns JSX element with simple product form fields
+ */
 export function SimpleProductSettings({
   form,
   selectedCategories,
@@ -45,7 +64,8 @@ export function SimpleProductSettings({
   dynamicCategories,
   isCategoriesLoading = false,
   onSKUValidationChange,
-  vendorId
+  vendorId,
+  productId
 }: SimpleProductSettingsProps) {
   return (
     <div className='space-y-6'>
@@ -85,7 +105,7 @@ export function SimpleProductSettings({
                   </p>
                   <FormControl>
                     <ProgressiveImageUploader
-                      value={field.value}
+                      value={field.value as File[]}
                       onValueChange={field.onChange}
                       maxFiles={4}
                       maxSize={4 * 1024 * 1024}
@@ -424,6 +444,7 @@ export function SimpleProductSettings({
                       onValidationChange={onSKUValidationChange}
                       vendorId={vendorId}
                       productName={form.watch('name')}
+                      productId={productId}
                       placeholder='Product code'
                     />
                   </FormControl>

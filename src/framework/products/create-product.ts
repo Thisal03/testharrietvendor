@@ -1,12 +1,63 @@
 import { getAccessToken } from '@/lib/services/token';
 import { config } from '../config';
 import { Product } from './types';
+import { ProductCreationError, ProductRollbackError } from '@/lib/errors/product-errors';
+import { deleteProduct } from './delete-product';
 
+/**
+ * Data structure for creating a product in WooCommerce
+ * 
+ * @interface CreateProductData
+ * @property {string} name - Product name (required)
+ * @property {'simple' | 'variable'} type - Product type (required)
+ * @property {string} description - Full product description (required)
+ * @property {string} short_description - Short description (not used - always empty string)
+ * @property {Array<{id: number}>} [categories] - WooCommerce category IDs
+ * @property {Array<{id: number}>} [images] - WooCommerce image attachment IDs
+ * @property {string | number} [image_id] - Primary product image ID
+ * @property {number[]} [gallery_image_ids] - Gallery image IDs
+ * @property {Array<{key: string, value: string | number | boolean | null | Record<string, unknown>}>} [meta_data] - Custom meta data for size chart, disabled variations, etc.
+ * @property {string} [regular_price] - Regular price for simple products
+ * @property {string} [sale_price] - Sale price
+ * @property {string} [date_on_sale_from] - Start date for sale (ISO 8601)
+ * @property {string} [date_on_sale_to] - End date for sale (ISO 8601)
+ * @property {'instock' | 'outofstock'} [stock_status] - Stock status
+ * @property {boolean} [manage_stock] - Whether to manage stock
+ * @property {number} [stock_quantity] - Stock quantity
+ * @property {string} [sku] - Stock Keeping Unit
+ * @property {string} [weight] - Product weight
+ * @property {Array<{id?: number, name?: string, position: number, visible: boolean, variation: boolean, options: string[]}>} [attributes] - Product attributes for variable products
+ * @property {Array<{id?: number, name?: string, option: string}>} [default_attributes] - Default attribute values
+ * @property {Array} [variations] - Variation data for variable products
+ * @remarks
+ * This interface represents the complete data structure for creating products in WooCommerce.
+ * It supports both simple and variable products with proper type safety.
+ * 
+ * @example
+ * ```typescript
+ * const productData: CreateProductData = {
+ *   name: 'Classic T-Shirt',
+ *   type: 'variable',
+ *   description: 'A classic cotton t-shirt',
+ *   short_description: '',
+ *   categories: [{ id: 15 }],
+ *   images: [{ id: 123 }, { id: 124 }],
+ *   attributes: [{
+ *     name: 'Size',
+ *     position: 0,
+ *     visible: true,
+ *     variation: true,
+ *     options: ['S', 'M', 'L']
+ *   }]
+ * };
+ * ```
+ */
 export interface CreateProductData {
   name: string;
   type: 'simple' | 'variable';
   description: string;
   short_description: string;
+  status?: 'draft' | 'pending' | 'private' | 'publish';
   // WooCommerce standard format for categories
   categories?: Array<{ id: number }>;
   // WooCommerce standard format for images
@@ -16,7 +67,7 @@ export interface CreateProductData {
   // Meta data for size chart and other custom fields
   meta_data?: Array<{
     key: string;
-    value: any;
+    value: string | number | boolean | null | Record<string, unknown>;
   }>;
   // Simple product fields
   regular_price?: string;
@@ -59,25 +110,71 @@ export interface CreateProductData {
   }>;
 }
 
+/**
+ * Creates a new product in WooCommerce with automatic rollback on failure
+ * 
+ * @param {CreateProductData} productData - Complete product data including basic info, pricing, images, categories, and variations
+ * @returns {Promise<Product>} The created product with WooCommerce ID
+ * @throws {ProductCreationError} If product creation fails with detailed context
+ * @throws {ProductRollbackError} If product was created but rollback fails (critical error)
+ * 
+ * @remarks
+ * This function implements a transaction-like behavior:
+ * 1. Attempts to create the product with all data (images, categories, meta_data)
+ * 2. Checks if images/categories attached successfully
+ * 3. If not attached, attempts an update call to attach them
+ * 4. If update fails, deletes the created product (rollback) for data integrity
+ * 5. Returns the complete product data or throws descriptive error
+ * 
+ * The function also optimizes the payload to remove redundant fields and
+ * handles WooCommerce API quirks with payload formatting.
+ * 
+ * @example
+ * ```typescript
+ * try {
+ *   const product = await createProduct({
+ *     name: 'New Product',
+ *     type: 'simple',
+ *     description: 'Product description',
+ *     short_description: '',
+ *     regular_price: '29.99',
+ *     sku: 'PROD-001',
+ *     categories: [{ id: 10 }],
+ *     images: [{ id: 123 }, { id: 124 }]
+ *   });
+ *   console.log('Product created:', product.id);
+ * } catch (error) {
+ *   if (error.isRecoverable()) {
+ *     // Retry the operation
+ *     error.retry();
+ *   }
+ * }
+ * ```
+ */
 export const createProduct = async (
   productData: CreateProductData
 ): Promise<Product> => {
+  let createdProductId: number | undefined = undefined;
+
   try {
     const token = await getAccessToken();
 
-    // Log the data being sent for debugging
-    console.log('Creating product with data:', JSON.stringify(productData, null, 2));
-    console.log('Image fields being sent:', {
-      images: productData.images,
-      image_id: productData.image_id,
-      gallery_image_ids: productData.gallery_image_ids
-    });
-    console.log('Category fields being sent:', {
-      categories: productData.categories
-    });
-    console.log('Meta data being sent:', {
-      meta_data: productData.meta_data
-    });
+    // Optimize payload: Use categories array format for better WooCommerce compatibility
+    const optimizedPayload = { ...productData };
+    
+    // Ensure categories are in the correct format (array of {id, name} or array of {id})
+    if (optimizedPayload.categories && Array.isArray(optimizedPayload.categories)) {
+      optimizedPayload.categories = optimizedPayload.categories.map(cat => 
+        typeof cat === 'object' && cat.id ? { id: cat.id } : cat
+      );
+    }
+
+    // Remove duplicate fields that WooCommerce might reject
+    if (optimizedPayload.images && optimizedPayload.images.length > 0) {
+      // Keep only the images array - remove image_id and gallery_image_ids as they're redundant
+      delete (optimizedPayload as any).image_id;
+      delete (optimizedPayload as any).gallery_image_ids;
+    }
 
     // Use the correct WooCommerce products endpoint
     const response = await fetch(
@@ -88,29 +185,27 @@ export const createProduct = async (
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(productData)
+        body: JSON.stringify(optimizedPayload)
       }
     );
 
     if (!response.ok) {
       const errorData = await response.json();
       console.error('WooCommerce API Error:', errorData);
-      throw new Error(
-        errorData.message || `HTTP error! status: ${response.status}`
+      throw new ProductCreationError(
+        errorData.message || `Failed to create product: HTTP ${response.status}`,
+        {
+          productData: optimizedPayload,
+          metadata: {
+            status: response.status,
+            errorData
+          }
+        }
       );
     }
 
     const product: Product = await response.json();
-    
-    // Log the response to verify image and category attachment
-    console.log('Product created - API Response:', {
-      id: product.id,
-      name: product.name,
-      image_id: product.image_id,
-      gallery_image_ids: product.gallery_image_ids,
-      featured_image: product.featured_image,
-      category_ids: product.category_ids
-    });
+    createdProductId = product.id;
     
     // Check if images, categories, or meta_data were provided but not attached
     const hasImages = productData.images?.length || productData.image_id;
@@ -121,109 +216,90 @@ export const createProduct = async (
     const categoriesNotAttached = hasCategories && !product.category_ids?.length;
     const metaDataNotAttached = hasMetaData && (!product.meta_data || product.meta_data.length === 0);
     
-    console.log('Attachment check:', {
-      hasImages,
-      hasCategories,
-      hasMetaData,
-      imagesNotAttached,
-      categoriesNotAttached,
-      metaDataNotAttached,
-      productImageId: product.image_id,
-      productGalleryIds: product.gallery_image_ids,
-      productCategoryIds: product.category_ids,
-      productMetaData: product.meta_data?.length
-    });
-    
+    // Attempt to attach images/categories/meta_data if they failed to attach initially
     if (imagesNotAttached || categoriesNotAttached || metaDataNotAttached) {
-      console.log('🔄 Some data not attached, updating product...');
       
-      // Import updateProduct function
       const { updateProduct } = await import('./update-product');
       
-      // Prepare update payload with correct format
+      // Prepare efficient update payload
       const updatePayload: any = {};
       
       if (imagesNotAttached && productData.images?.length) {
         updatePayload.images = productData.images.map(img => ({ id: img.id }));
-        updatePayload.image_id = productData.image_id;
-        updatePayload.gallery_image_ids = productData.gallery_image_ids;
-        console.log('📸 Updating with images:', updatePayload.images);
       }
       
       if (categoriesNotAttached && productData.categories?.length) {
-        // Use the categories format that WooCommerce expects
-        updatePayload.categories = productData.categories;
-        console.log('🏷️ Updating with categories:', updatePayload.categories);
+        updatePayload.categories = productData.categories.map(cat => ({ id: cat.id }));
       }
       
-      // Always include meta_data in update to ensure size chart is properly attached
       if (productData.meta_data?.length) {
         updatePayload.meta_data = productData.meta_data;
-        console.log('📋 Updating with meta_data:', updatePayload.meta_data);
       }
       
       try {
-        // Update the product with missing data
         const updatedProduct = await updateProduct(product.id, updatePayload);
-        
-        // Fetch the product again to get actual saved state
-        const { getProductById } = await import('./get-product-by-id');
-        const verifiedProduct = await getProductById(product.id);
-        
-        if (verifiedProduct) {
-          console.log('✅ Product verified after update:', {
-            id: verifiedProduct.id,
-            image_id: verifiedProduct.image_id,
-            gallery_image_ids: verifiedProduct.gallery_image_ids,
-            category_ids: verifiedProduct.category_ids,
-            meta_data: verifiedProduct.meta_data?.filter(m => m.key.includes('size_chart'))
-          });
-          
-          // Check if the update actually worked
-          const imagesStillMissing = imagesNotAttached && (!verifiedProduct.image_id && !verifiedProduct.gallery_image_ids?.length);
-          const categoriesStillMissing = categoriesNotAttached && !verifiedProduct.category_ids?.length;
-          const metaDataStillMissing = metaDataNotAttached && (!verifiedProduct.meta_data || verifiedProduct.meta_data.length === 0);
-          
-          if (imagesStillMissing || categoriesStillMissing || metaDataStillMissing) {
-            console.warn('⚠️ Some data still not attached after update, trying fallback approach...');
-            
-            // Try a more direct approach for categories
-            if (categoriesStillMissing && productData.categories?.length) {
-              console.log('🔄 Trying direct category assignment...');
-              try {
-                const categoryUpdatePayload = {
-                  categories: productData.categories
-                };
-                await updateProduct(product.id, categoryUpdatePayload);
-                console.log('✅ Categories updated with direct approach');
-              } catch (categoryError) {
-                console.error('❌ Direct category update failed:', categoryError);
-              }
-            }
-          }
-          
-          return verifiedProduct;
-        }
-        
-        console.log('✅ Product updated successfully:', {
-          id: updatedProduct.id,
-          image_id: updatedProduct.image_id,
-          gallery_image_ids: updatedProduct.gallery_image_ids,
-          category_ids: updatedProduct.category_ids,
-          meta_data_keys: updatedProduct.meta_data?.map(m => m.key) || []
-        });
-        
         return updatedProduct;
       } catch (updateError) {
-        console.error('❌ Failed to update product:', updateError);
-        // Return the original product even if update fails
-        return product;
+        // Rollback: Delete the product we just created since we can't attach required data
+        console.error('Failed to attach images/categories, rolling back product creation:', updateError);
+        
+        try {
+          await deleteProduct(product.id);
+          throw new ProductCreationError(
+            `Product created but failed to attach images/categories. The product has been rolled back. Error: ${updateError instanceof Error ? updateError.message : String(updateError)}`,
+            {
+              productData: optimizedPayload,
+              partialProductId: product.id,
+              recoverable: true,
+              retryAction: () => createProduct(productData),
+              metadata: {
+                updateError: updateError instanceof Error ? updateError.message : String(updateError),
+                attachedImages: !imagesNotAttached,
+                attachedCategories: !categoriesNotAttached,
+                attachedMetaData: !metaDataNotAttached
+              }
+            }
+          );
+        } catch (rollbackError) {
+          // If rollback itself fails, we have a serious problem
+          throw new ProductRollbackError(
+            `Critical error: Product created but rollback failed. Product ID ${product.id} may be orphaned.`,
+            product.id,
+            {
+              cause: updateError,
+              metadata: {
+                rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+                originalError: updateError instanceof Error ? updateError.message : String(updateError)
+              }
+            }
+          );
+        }
       }
     }
     
     return product;
   } catch (error) {
     console.error('Failed to create product:', error);
+    
+    // If product was created but error occurred, ensure cleanup
+    if (createdProductId && error instanceof ProductCreationError) {
+      // Error already has rollback logic, just rethrow
+      throw error;
+    }
+    
+    // For non-ProductCreationError errors, wrap them
+    if (!(error instanceof ProductCreationError)) {
+      throw new ProductCreationError(
+        error instanceof Error ? error.message : 'Failed to create product',
+        {
+          productData,
+          cause: error,
+          recoverable: true,
+          retryAction: () => createProduct(productData)
+        }
+      );
+    }
+    
     throw error;
   }
 };

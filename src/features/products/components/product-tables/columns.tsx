@@ -15,6 +15,7 @@ import {
 import { getProductFeaturedImage } from '@/framework/products/get-product-images';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { ImageWithZoom } from '@/components/ui/image-with-zoom';
 
 // Component to handle product image display
 function ProductImageCell({ productId, productName, fallbackImage }: { 
@@ -58,33 +59,49 @@ function ProductImageCell({ productId, productName, fallbackImage }: {
 
   if (imageUrl) {
     return (
-      <img
+      <ImageWithZoom
         src={imageUrl}
         alt={productName}
         width={40}
         height={40}
-        className='h-10 w-10 rounded-md object-cover'
-        onError={() => {
-          console.error('Failed to load image:', imageUrl);
-          setImageUrl(null);
-        }}
-      />
+        zoomScale={5}
+      >
+        <img
+          src={imageUrl}
+          alt={productName}
+          width={40}
+          height={40}
+          className='h-10 w-10 rounded-md object-cover'
+          onError={() => {
+            console.error('Failed to load image:', imageUrl);
+            setImageUrl(null);
+          }}
+        />
+      </ImageWithZoom>
     );
   }
 
   // Fallback to featured_image if available - with proper type checking
   if (fallbackImage && typeof fallbackImage === 'string' && fallbackImage.trim() !== '') {
     return (
-      <Image
+      <ImageWithZoom
         src={fallbackImage}
         alt={productName}
         width={40}
         height={40}
-        className='h-10 w-10 rounded-md object-cover'
-        onError={() => {
-          console.error('Failed to load fallback image:', fallbackImage);
-        }}
-      />
+        zoomScale={5}
+      >
+        <Image
+          src={fallbackImage}
+          alt={productName}
+          width={40}
+          height={40}
+          className='h-10 w-10 rounded-md object-cover'
+          onError={() => {
+            console.error('Failed to load fallback image:', fallbackImage);
+          }}
+        />
+      </ImageWithZoom>
     );
   }
 
@@ -111,16 +128,18 @@ export const columns: ColumnDef<Product>[] = [
     cell: ({ row }) => {
       return (
         <Tooltip delayDuration={500}>
-          <TooltipTrigger className='flex space-x-2'>
+          <div className='flex space-x-2'>
             <ProductImageCell 
               productId={row.original.id}
               productName={row.getValue('name')}
               fallbackImage={row.original.featured_image}
             />
+            <TooltipTrigger>
             <span className='max-w-[300px] truncate font-medium'>
               {row.getValue('name')}
             </span>
-          </TooltipTrigger>
+            </TooltipTrigger>
+          </div>
           <TooltipContent className='max-w-xs'>
             {row.getValue('name')}
           </TooltipContent>
@@ -138,17 +157,17 @@ export const columns: ColumnDef<Product>[] = [
   //   )
   // },
   {
-    accessorKey: 'price',
+    accessorKey: 'regular_price',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title='Price' />
     ),
     cell: ({ row }) => {
-      const price = parseFloat(row.getValue('price'));
-      const salePrice = parseFloat(row.original.sale_price);
+      const price = parseFloat(row.getValue('regular_price') ? row.getValue('regular_price') : row.original.price ? row.original.price : '0');
+      const salePrice = parseFloat(row.original.sale_price ? row.original.sale_price : '0');
 
       return (
         <div className='flex items-center justify-center'>
-          {salePrice ? (
+          {salePrice && salePrice > 0 ? (
             <>
               <span className='text-muted-foreground mr-2 line-through'>
                 {formatPrice(price)}
@@ -204,7 +223,8 @@ export const columns: ColumnDef<Product>[] = [
     ),
     cell: ({ row }) => {
       const dateCreated = row.original.date_created;
-      const date = new Date(dateCreated?.date || dateCreated);
+      const dateString = typeof dateCreated === 'object' && 'date' in dateCreated ? dateCreated.date : String(dateCreated);
+      const date = new Date(dateString);
       return (
         <div className='text-sm'>
           {isValid(date) ? (

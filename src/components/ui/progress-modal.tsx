@@ -89,8 +89,11 @@ export function ProgressModal({
           {/* Progress Bar - only show during upload/create */}
           {(status === 'uploading' || status === 'creating') && (
             <div className='space-y-2'>
-              <Progress value={progress} className='h-2' />
-              <p className='text-sm text-center text-muted-foreground'>
+              <Progress 
+                value={progress} 
+                className='h-2 transition-all duration-300 ease-out' 
+              />
+              <p className='text-sm text-center text-muted-foreground transition-all duration-200'>
                 {Math.round(progress)}% Complete
               </p>
             </div>

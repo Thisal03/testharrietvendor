@@ -37,6 +37,7 @@ import PrintWaybill from './print-waybill';
 import { formatPrice } from '@/lib/utils';
 import Image from 'next/image';
 import { getProductFeaturedImage } from '@/framework/products/get-product-images';
+import { ImageWithZoom } from '@/components/ui/image-with-zoom';
 
 // Component to handle product image display
 function ProductImageDisplay({ productId, productName, fallbackImage }: { 
@@ -74,30 +75,46 @@ function ProductImageDisplay({ productId, productName, fallbackImage }: {
 
   if (imageUrl) {
     return (
-      <img
+      <ImageWithZoom
         src={imageUrl}
         alt={productName}
         width={50}
         height={50}
-        className='rounded-sm object-cover'
-        onError={() => {
-          console.error('Failed to load image:', imageUrl);
-          setImageUrl(null);
-        }}
-      />
+        zoomScale={4}
+      >
+        <img
+          src={imageUrl}
+          alt={productName}
+          width={50}
+          height={50}
+          className='rounded-sm object-cover'
+          onError={() => {
+            console.error('Failed to load image:', imageUrl);
+            setImageUrl(null);
+          }}
+        />
+      </ImageWithZoom>
     );
   }
 
   // Fallback to order item image if available
   if (fallbackImage && fallbackImage.thumbnail && fallbackImage.thumbnail.trim() !== '') {
     return (
-      <Image
+      <ImageWithZoom
         src={fallbackImage.thumbnail}
         alt={fallbackImage.alt || productName}
         width={50}
         height={50}
-        className='rounded-sm object-cover'
-      />
+        zoomScale={4}
+      >
+        <Image
+          src={fallbackImage.thumbnail}
+          alt={fallbackImage.alt || productName}
+          width={50}
+          height={50}
+          className='rounded-sm object-cover'
+        />
+      </ImageWithZoom>
     );
   }
 

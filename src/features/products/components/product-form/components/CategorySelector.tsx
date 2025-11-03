@@ -17,20 +17,35 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@/components/ui/popover';
-import { Check, ChevronsUpDown, X, Loader2 } from 'lucide-react';
+import { Check, ChevronsUpDown, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProductCategory } from '@/framework/products/get-categories';
 import { UseFormReturn } from 'react-hook-form';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FormValues } from '../schema';
 
 interface CategorySelectorProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<FormValues>;
   selectedCategories: number[];
   setSelectedCategories: (categories: number[]) => void;
   dynamicCategories?: ProductCategory[];
   isLoading?: boolean;
 }
 
+/**
+ * Component for selecting product categories
+ * 
+ * Provides a searchable combobox interface for selecting multiple product categories
+ * from WooCommerce. Displays selected categories as removable badges.
+ * 
+ * @param props - Component props
+ * @param props.form - React Hook Form instance
+ * @param props.selectedCategories - Array of selected category IDs
+ * @param props.setSelectedCategories - Function to update selected categories
+ * @param props.dynamicCategories - Available categories from WooCommerce
+ * @param props.isLoading - Loading state for categories
+ * @returns JSX element with category selector UI
+ */
 export function CategorySelector({
   form,
   selectedCategories,
@@ -96,7 +111,6 @@ export function CategorySelector({
                               : [...selectedCategories, category.id];
                             setSelectedCategories(newCategories);
                             const formattedCategories = newCategories.map((id) => ({ id }));
-                            console.log('Setting categories in form:', formattedCategories);
                             form.setValue('categories', formattedCategories);
                           }}
                         >
@@ -131,8 +145,9 @@ export function CategorySelector({
                 className='flex items-center gap-1'
               >
                 {category.name}
-                <X
-                  className='h-3 w-3 cursor-pointer'
+                <button
+                  type='button'
+                  className='ml-1 hover:text-destructive transition-colors focus:outline-none cursor-pointer'
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -145,7 +160,9 @@ export function CategorySelector({
                       newCategories.map((id) => ({ id }))
                     );
                   }}
-                />
+                >
+                  <Trash2 className='h-4 w-4' />
+                </button>
               </Badge>
             );
           })}

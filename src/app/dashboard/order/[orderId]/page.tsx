@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import FormCardSkeleton from '@/components/form-card-skeleton';
+import OrderDetailsSkeleton from '@/components/order-details-skeleton';
 import PageContainer from '@/components/layout/page-container';
 import OrderViewPage from '@/features/orders/components/order-view-page';
 import { Suspense } from 'react';
@@ -15,7 +15,7 @@ export default async function Page(props: PageProps) {
   return (
     <PageContainer scrollable>
       <div className='flex-1 space-y-4 pb-10'>
-        <Suspense fallback={<FormCardSkeleton />}>
+        <Suspense fallback={<OrderDetailsSkeleton />}>
           <OrderViewPage orderId={params.orderId} />
         </Suspense>
       </div>

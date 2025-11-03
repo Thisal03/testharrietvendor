@@ -43,8 +43,7 @@ export const getCategories = async (): Promise<ProductCategory[]> => {
       hasMore = page < totalPages;
       page++;
     }
-
-    console.log(`Fetched ${allCategories.length} categories from WooCommerce`);
+    
     return allCategories;
   } catch (error) {
     console.error('Failed to fetch categories:', error);

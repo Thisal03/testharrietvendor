@@ -1,27 +1,43 @@
 import * as z from 'zod';
-import { MAX_FILE_SIZE, ACCEPTED_IMAGE_TYPES } from './constants';
+// Constants are defined inline to avoid circular dependencies
+const MAX_FILE_SIZE = 5000000; // 5MB
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as const;
+import { FormFile, VariationImage } from './types';
+
+// Define the file schema as a union type
+const fileSchema = z.union([
+  z.instanceof(File),
+  z.object({
+    src: z.string(),
+    id: z.number().optional(),
+    name: z.string().optional(),
+    preview: z.string().optional()
+  }).passthrough() // Allow extra properties
+]);
 
 export const formSchema = z.object({
   images: z
-    .any()
-    .refine((files) => {
-      if (!files) return false;
-      const fileArray = Array.isArray(files) ? files : [files];
-      return fileArray.length >= 1;
-    }, 'At least one image is required.')
+    .array(fileSchema)
+    .min(1, 'At least one image is required.')
     .refine(
       (files) => {
-        if (!files) return true;
-        const fileArray = Array.isArray(files) ? files : [files];
-        return fileArray.every((file: File) => file.size <= MAX_FILE_SIZE);
+        return files.every((file) => {
+          // Allow existing images (objects with src property) - skip validation
+          if (file && typeof file === 'object' && 'src' in file) return true;
+          // Validate new file uploads only
+          return file instanceof File && file.size <= MAX_FILE_SIZE;
+        });
       },
       `Max file size is 5MB.`
     )
     .refine(
       (files) => {
-        if (!files) return true;
-        const fileArray = Array.isArray(files) ? files : [files];
-        return fileArray.every((file: File) => ACCEPTED_IMAGE_TYPES.includes(file?.type));
+        return files.every((file) => {
+          // Allow existing images (objects with src property) - skip validation
+          if (file && typeof file === 'object' && 'src' in file) return true;
+          // Validate new file uploads only
+          return file instanceof File && (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file?.type);
+        });
       },
       '.jpg, .jpeg, .png and .webp files are accepted.'
     ),
@@ -32,16 +48,12 @@ export const formSchema = z.object({
   description: z.string().min(10, {
     message: 'Description must be at least 10 characters.'
   }),
-  short_description: z.string().min(10, {
-    message: 'Short description must be at least 10 characters.'
-  }),
   has_size_chart: z.boolean().optional(),
-  size_chart: z.any().optional().refine(
+  size_chart: z.array(fileSchema).optional().refine(
     (files) => {
       if (!files) return true;
-      const fileArray = Array.isArray(files) ? files : [files];
-      if (fileArray.length === 0) return true;
-      return fileArray.every((file: any) => {
+      if (files.length === 0) return true;
+      return files.every((file) => {
         // Allow existing images (objects with src property)
         if (file && typeof file === 'object' && 'src' in file) return true;
         // Validate new file uploads
@@ -52,13 +64,12 @@ export const formSchema = z.object({
   ).refine(
     (files) => {
       if (!files) return true;
-      const fileArray = Array.isArray(files) ? files : [files];
-      if (fileArray.length === 0) return true;
-      return fileArray.every((file: any) => {
+      if (files.length === 0) return true;
+      return files.every((file) => {
         // Allow existing images
         if (file && typeof file === 'object' && 'src' in file) return true;
-        // Validate new file uploads
-        return file instanceof File && ACCEPTED_IMAGE_TYPES.includes(file?.type);
+        // Validate new file uploads - use type assertion to handle File type
+        return file instanceof File && (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file?.type);
       });
     },
     '.jpg, .jpeg, .png and .webp files are accepted.'
@@ -116,30 +127,17 @@ export const formSchema = z.object({
   stock_status: z.enum(['instock', 'outofstock']).optional(),
   manage_stock: z.boolean().optional(),
   stock_quantity: z.number().min(0, 'Stock quantity must be non-negative.').optional(),
-  sku: z.string()
-    .optional()
-    .refine(async (sku) => {
-      if (!sku || sku.trim() === '') return true;
-      
-      try {
-        const { checkSKUAvailability } = await import('@/framework/products/get-sku');
-        const isAvailable = await checkSKUAvailability(sku.trim());
-        return isAvailable;
-      } catch (error) {
-        console.error('SKU validation error:', error);
-        return true; // Allow if validation fails
-      }
-    }, 'SKU is already taken. Please choose a different one.'),
+  sku: z.string().optional(),
   weight: z.string().optional()
     .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), 'Weight must be a valid positive number'),
   variations: z.array(
     z.object({
       id: z.string(),
+      variation_id: z.number().optional(),
       attributes: z.record(z.string(), z.string()),
-      image: z.any().optional(),
-      price: z.string()
-        .min(1, 'Price is required')
-        .refine((val) => !isNaN(Number(val)) && Number(val) >= 0, 'Price must be a valid positive number'),
+      image: z.union([z.string(), z.instanceof(File), z.object({ src: z.string(), preview: z.string().optional(), name: z.string().optional() }), z.null()]).optional(),
+      price: z.string().optional()
+        .refine((val) => !val || !isNaN(Number(val)) && Number(val) >= 0, 'Price must be a valid positive number'),
       on_sale: z.boolean(),
       sale_price: z.string().optional()
         .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), 'Sale price must be a valid positive number'),
@@ -153,6 +151,20 @@ export const formSchema = z.object({
       weight: z.string().optional()
         .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), 'Weight must be a valid positive number'),
       enabled: z.boolean()
+    })
+    .refine((data) => {
+      // Only validate required fields if variation is enabled
+      if (!data.enabled) return true;
+      
+      // If enabled, price is required
+      if (!data.price || data.price.trim() === '') {
+        return false;
+      }
+      
+      return true;
+    }, {
+      message: 'Price is required for enabled variations',
+      path: ['price']
     })
   ).optional()
 }).superRefine((data, ctx) => {

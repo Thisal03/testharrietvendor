@@ -42,13 +42,26 @@ export function ProgressiveImageUploader({
   const filesWithPreview = React.useMemo((): (File & { preview: string })[] => {
     if (!files || files.length === 0) return [];
     return files.map((file) => {
-      if (isFileWithPreview(file)) return file;
-      // Some browsers/components may provide plain objects; only createObjectURL for File/Blob
+      // Check if file already has a valid preview URL
+      if (isFileWithPreview(file) && isValidImageUrl(file.preview)) {
+        return file;
+      }
+      
+      // If file has 'src' property (existing image from backend), use that
+      if (!isFileInstance(file) && 'src' in file && typeof (file as any).src === 'string') {
+        const src = (file as any).src;
+        if (isValidImageUrl(src)) {
+          return Object.assign(file, { preview: src });
+        }
+      }
+      
+      // For actual File/Blob instances, create object URL
       if (file instanceof Blob) {
         return Object.assign(file, { preview: URL.createObjectURL(file) });
       }
-      // Fallback: coerce type to avoid runtime createObjectURL on non-Blob
-      return file as File & { preview: string };
+      
+      // Fallback: return file as-is with empty preview
+      return Object.assign(file, { preview: '' });
     });
   }, [files]);
 
@@ -190,20 +203,22 @@ export function ProgressiveImageUploader({
               )}
             >
               <div className='relative w-full aspect-square'>
-                {isFileWithPreview(file) ? (
+                {isFileWithPreview(file) && file.preview ? (
                   <Image
                     src={file.preview}
-                    alt={file.name}
+                    alt={file.name || 'Product image'}
                     fill
                     loading='lazy'
                     className='object-cover'
-                    onError={() => {
-                      // Image failed to load, fallback will show file name
+                    onError={(e) => {
+                      console.error('Failed to load image:', file.preview);
+                      // Hide the broken image
+                      (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className='flex items-center justify-center h-full bg-gray-100 text-gray-500 text-xs'>
-                    {(file as File).name}
+                  <div className='flex items-center justify-center h-full bg-gray-100 text-gray-500 text-xs p-2'>
+                    {(file as any).name || 'Image'}
                   </div>
                 )}
                 {/* Drag Handle */}
@@ -245,5 +260,15 @@ export function ProgressiveImageUploader({
 
 function isFileWithPreview(file: File): file is File & { preview: string } {
   return 'preview' in file && typeof file.preview === 'string';
+}
+
+function isValidImageUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  // Check if it's a valid URL (starts with http://, https://, or /)
+  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('blob:');
+}
+
+function isFileInstance(file: any): file is File {
+  return file instanceof File || file instanceof Blob;
 }
 

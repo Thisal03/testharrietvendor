@@ -40,12 +40,18 @@ export function RichTextEditor({
     setIsMounted(true);
   }, []);
 
-  // Update editor content when value prop changes
+  // Update editor content when value prop changes OR when component mounts
   React.useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
+    if (isMounted && editorRef.current) {
+      const currentContent = editorRef.current.innerHTML;
+      const newValue = value || '';
+      
+      // Only update if content is different to avoid cursor jumping
+      if (currentContent !== newValue) {
+        editorRef.current.innerHTML = newValue;
+      }
     }
-  }, [value]);
+  }, [value, isMounted]);
 
   // Don't render on server side
   if (!isMounted) {
