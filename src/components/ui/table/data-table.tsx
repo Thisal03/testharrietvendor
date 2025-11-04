@@ -128,9 +128,10 @@ export function DataTable<TData>({
                           // Don't navigate if clicking on actions column or interactive elements
                           const target = e.target as HTMLElement;
                           const isActionCell = target.closest('[data-action-cell]');
-                          const isInteractive = target.closest('button, a, input, select, [role="button"]');
+                          const isInteractive = target.closest('button, a, input, select, [role="button"], [role="menuitem"]');
+                          const isDropdownMenu = target.closest('[role="menu"], [data-radix-dropdown-menu-content]');
                           
-                          if (!isActionCell && !isInteractive && onRowClick) {
+                          if (!isActionCell && !isInteractive && !isDropdownMenu && onRowClick) {
                             onRowClick(row.original);
                           }
                         }}

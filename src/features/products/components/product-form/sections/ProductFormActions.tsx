@@ -49,17 +49,31 @@ export function ProductFormActions({
 }: ProductFormActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  // Use ref to track deletion state synchronously (React state updates are async)
+  const isDeletingRef = React.useRef(false);
 
-  const handleDelete = async () => {
-    if (!onDelete) return;
+  const handleDelete = async (e?: React.MouseEvent) => {
+    if (!onDelete || isDeletingRef.current) return;
     
+    // Prevent default dialog close behavior
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Set deleting state IMMEDIATELY in both ref and state
+    isDeletingRef.current = true;
     setIsDeleting(true);
+    
     try {
       await onDelete();
+      // Only close dialog after successful deletion
       setShowDeleteDialog(false);
     } catch (error) {
       console.error('Delete failed:', error);
+      // Keep dialog open on error so user can see the error and try again
     } finally {
+      isDeletingRef.current = false;
       setIsDeleting(false);
     }
   };
@@ -152,38 +166,47 @@ export function ProductFormActions({
             ) : (
               <>
                 <Save className='h-4 w-4' />
-                {isUpdateMode ? 'Save Changes' : 'Save Pending'}
+                {isUpdateMode ? 'Save as Pending' : 'Create Product'}
               </>
             )}
           </Button>
-          <Button 
-            type='submit' 
-            disabled={isSubmitting}
-            onClick={handlePublish}
-            size='lg'
-            className='min-w-[140px] shadow-sm gap-2'
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className='h-4 w-4 animate-spin' />
-                Publishing...
-              </>
-            ) : (
-              <>
-                <Upload className='h-4 w-4' />
-                {isUpdateMode ? 'Update & Publish' : 'Publish'}
-              </>
-            )}
-          </Button>
+          {/* Only show publish button in update/edit mode */}
+          {isUpdateMode && (
+            <Button 
+              type='submit' 
+              disabled={isSubmitting}
+              onClick={handlePublish}
+              size='lg'
+              className='min-w-[140px] shadow-sm gap-2'
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                  Publishing...
+                </>
+              ) : (
+                <>
+                  <Upload className='h-4 w-4' />
+                  Update & Publish
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
-        if (!isDeleting) {
+      <AlertDialog 
+        open={showDeleteDialog} 
+        onOpenChange={(open) => {
+          // Use ref to check deletion state synchronously (React state updates are async)
+          if (isDeletingRef.current || isDeleting) {
+            // Prevent closing while deletion is in progress
+            return;
+          }
           setShowDeleteDialog(open);
-        }
-      }}>
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
@@ -193,10 +216,11 @@ export function ProductFormActions({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            {/* Use regular Button instead of AlertDialogAction to prevent auto-close */}
+            <Button
               onClick={handleDelete}
               disabled={isDeleting}
-              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              className='bg-destructive text-white hover:bg-destructive/90'
             >
               {isDeleting ? (
                 <>
@@ -206,7 +230,7 @@ export function ProductFormActions({
               ) : (
                 'Move to Trash'
               )}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

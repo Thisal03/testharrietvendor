@@ -116,7 +116,8 @@ export default function ProductForm({
   const handleSubmitWithoutValidation = React.useCallback((status: 'draft' | 'pending' | 'publish') => {
     setProductStatus(status);
     const values = form.getValues();
-    onSubmit(values);
+    // Pass status directly to onSubmit to override store value (avoid async state update issue)
+    onSubmit(values, status);
   }, [form, onSubmit, setProductStatus]);
 
   // All initialization handled by useProductFormInit hook above

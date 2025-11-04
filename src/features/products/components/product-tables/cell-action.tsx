@@ -55,8 +55,23 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/dashboard/product/${data.id}`);
+  };
+
+  const handleStatusChange = (newStatus: ProductStatus) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStatusChange(newStatus);
+  };
+
+  const handleMoveToTrash = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpen(true);
+  };
+
   return (
-    <>
+    <div onClick={(e) => e.stopPropagation()}>
       <AlertModal
         isOpen={open}
         onClose={() => setOpen(false)}
@@ -81,7 +96,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           
           <DropdownMenuItem
-            onClick={() => router.push(`/dashboard/product/${data.id}`)}
+            onClick={handleEdit}
             disabled={statusLoading || deleteLoading}
           >
             <IconEdit className='mr-2 h-4 w-4' /> Edit
@@ -92,7 +107,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           {/* Status Actions */}
           {data.status === 'pending' && (
             <DropdownMenuItem
-              onClick={() => onStatusChange('publish')}
+              onClick={handleStatusChange('publish')}
               disabled={statusLoading || deleteLoading}
             >
               <IconCheck className='mr-2 h-4 w-4' /> Publish
@@ -101,7 +116,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           
           {data.status === 'publish' && (
             <DropdownMenuItem
-              onClick={() => onStatusChange('pending')}
+              onClick={handleStatusChange('pending')}
               disabled={statusLoading || deleteLoading}
             >
               <IconClock className='mr-2 h-4 w-4' /> Set to Pending
@@ -111,13 +126,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           {data.status === 'draft' && (
             <>
               <DropdownMenuItem
-                onClick={() => onStatusChange('publish')}
+                onClick={handleStatusChange('publish')}
                 disabled={statusLoading || deleteLoading}
               >
                 <IconCheck className='mr-2 h-4 w-4' /> Publish
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => onStatusChange('pending')}
+                onClick={handleStatusChange('pending')}
                 disabled={statusLoading || deleteLoading}
               >
                 <IconClock className='mr-2 h-4 w-4' /> Set to Pending
@@ -129,7 +144,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           
           {/* Move to Trash */}
           <DropdownMenuItem
-            onClick={() => setOpen(true)}
+            onClick={handleMoveToTrash}
             disabled={statusLoading || deleteLoading}
             className='text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950'
           >
@@ -137,6 +152,6 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </>
+    </div>
   );
 };

@@ -75,12 +75,15 @@ export function useProductFormSubmit({
   } = store;
   const { uploadImages } = useProductImages();
 
-  const onSubmit = React.useCallback(async (values: FormValues) => {
+  const onSubmit = React.useCallback(async (values: FormValues, overrideStatus?: 'draft' | 'pending' | 'publish') => {
     try {
       setIsSubmitting(true);
       
+      // Use override status if provided, otherwise use store status
+      const currentStatus = overrideStatus ?? productStatus;
+      
       // Check if SKU is valid before proceeding (skip for draft)
-      if (!isSKUValid && productStatus !== 'draft') {
+      if (!isSKUValid && currentStatus !== 'draft') {
         toast.error('Please fix the SKU validation error before submitting');
         setIsSubmitting(false);
         return;
@@ -120,7 +123,7 @@ export function useProductFormSubmit({
       setProgressMessage(initialData ? 'Updating product...' : 'Creating product...');
 
       // Transform form data to WooCommerce format
-      const productData = transformFormDataToWooCommerce(values, allImages, sizeChartToUse, uploadedVariationImages, productStatus);
+      const productData = transformFormDataToWooCommerce(values, allImages, sizeChartToUse, uploadedVariationImages, currentStatus);
 
       // Create or update product
       let product: any;
