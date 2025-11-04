@@ -250,28 +250,33 @@ export function useProductFormInit({ initialData, form }: UseProductFormInitProp
               });
             }
 
+              // Get featured image URL for comparison
+              const featuredImageUrl = initialData?.images?.[0]?.src;
+              
               // Validate variation image URL
               const hasValidImageUrl = v.image?.src && typeof v.image.src === 'string' && 
                 (v.image.src.startsWith('http://') || v.image.src.startsWith('https://') || v.image.src.startsWith('/'));
               
-              // Debug logging to understand what WooCommerce returns
-              if (v.image && (!v.image.src || typeof v.image.src !== 'string')) {
-                console.log('Variation has image object but no valid src:', { variationId: v.id, image: v.image });
-              }
+              // Check if variation image matches featured image
+              const isFeaturedImage = hasValidImageUrl && featuredImageUrl && v.image?.src === featuredImageUrl;
               
               // Ensure we have a valid ID
               const variationId = v.id || `temp-${Date.now()}-${Math.random()}`;
+              
+              // Only set image if it has a valid src URL AND it's not the featured image
+              // If WooCommerce returns featured image, treat it as no variation image
+              const finalImage = hasValidImageUrl && v.image?.src && !isFeaturedImage ? {
+                name: `variation-${v.id}`,
+                preview: v.image.src,
+                src: v.image.src
+              } : null;
               
               return {
                 id: `var-${variationId}`,
                 variation_id: v.id, // Store real WooCommerce variation ID for SKU validation
                 attributes,
-                // Only set image if it has a valid src URL - otherwise set to null
-                image: hasValidImageUrl && v.image?.src ? {
-                  name: `variation-${v.id}`,
-                  preview: v.image.src,
-                  src: v.image.src
-                } : null,
+                // Only set image if it has a valid src URL and it's not the featured image - otherwise set to null
+                image: finalImage,
                 price: v.regular_price || '',
                 on_sale: !!(v.sale_price && v.sale_price !== ''),
                 sale_price: v.sale_price || '',
