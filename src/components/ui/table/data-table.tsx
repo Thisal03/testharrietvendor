@@ -18,12 +18,14 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 interface DataTableProps<TData> extends React.ComponentProps<'div'> {
   table: TanstackTable<TData>;
   actionBar?: React.ReactNode;
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData>({
   table,
   actionBar,
-  children
+  children,
+  onRowClick
 }: DataTableProps<TData>) {
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<React.ElementRef<typeof ScrollArea>>(null);
@@ -121,12 +123,23 @@ export function DataTable<TData>({
                       <TableRow
                         key={row.id}
                         data-state={row.getIsSelected() && 'selected'}
-                        className='hover:bg-muted/50 transition-colors'
+                        className={onRowClick ? 'hover:bg-muted/50 transition-colors cursor-pointer' : 'hover:bg-muted/50 transition-colors'}
+                        onClick={(e) => {
+                          // Don't navigate if clicking on actions column or interactive elements
+                          const target = e.target as HTMLElement;
+                          const isActionCell = target.closest('[data-action-cell]');
+                          const isInteractive = target.closest('button, a, input, select, [role="button"]');
+                          
+                          if (!isActionCell && !isInteractive && onRowClick) {
+                            onRowClick(row.original);
+                          }
+                        }}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell
                             key={cell.id}
                             className='py-3 px-4'
+                            data-action-cell={cell.column.id === 'actions' ? 'true' : undefined}
                             style={{
                               ...getCommonPinningStyles({ column: cell.column }),
                               width: cell.column.getSize(),

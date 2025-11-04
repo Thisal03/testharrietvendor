@@ -75,7 +75,21 @@ export function VariationCard({
   return (
     <div className='rounded-lg bg-white dark:bg-gray-800 overflow-hidden border shadow-sm hover:shadow-md transition-all'>
       <Collapsible open={isExpanded} onOpenChange={onToggleExpansion}>
-        <div className='p-4 flex items-center gap-4 hover:bg-gray-50 dark:bg-gray-700 transition-colors'>
+        <div 
+          className={cn(
+            'p-4 flex items-center gap-4 hover:bg-gray-50 dark:bg-gray-700 transition-colors cursor-pointer'
+          )}
+          onClick={(e) => {
+            // Don't toggle if clicking on interactive elements (Switch, button)
+            const target = e.target as HTMLElement;
+            const isInteractive = target.closest('button, [role="switch"], [role="button"]');
+            
+            // Only toggle if not clicking on interactive elements
+            if (!isInteractive) {
+              onToggleExpansion();
+            }
+          }}
+        >
           {/* Variation Image Thumbnail */}
           <div className='flex-shrink-0'>
             {imagePreview ? (
@@ -104,7 +118,7 @@ export function VariationCard({
                   : 'No attributes'}
               </h5>
             </div>
-            <div className='flex items-center gap-3'>
+            <div className='flex items-center gap-3' onClick={(e) => e.stopPropagation()}>
               <div className='flex items-center gap-2 text-sm'>
                 <span className='text-muted-foreground'>Enabled</span>
                 <Switch
@@ -115,7 +129,7 @@ export function VariationCard({
                 />
               </div>
               <CollapsibleTrigger asChild>
-                <button className='flex items-center gap-2 p-2 hover:bg-gray-100 rounded-md transition-colors cursor-pointer border border-gray-200'>
+                <button className='flex items-center gap-2 p-2 cursor-pointer'>
                   <span className='text-sm text-muted-foreground'>Details</span>
                   <ChevronDown
                     className={cn(

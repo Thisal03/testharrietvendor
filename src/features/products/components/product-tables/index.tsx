@@ -7,6 +7,9 @@ import { useDataTable } from '@/hooks/use-data-table';
 
 import { ColumnDef } from '@tanstack/react-table';
 import { parseAsInteger, useQueryState } from 'nuqs';
+import { useRouter } from 'next/navigation';
+import { Product } from '@/framework/products/types';
+
 interface ProductTableParams<TData, TValue> {
   data: TData[];
   totalItems: number;
@@ -18,6 +21,7 @@ export function ProductTable<TData, TValue>({
   columns
 }: ProductTableParams<TData, TValue>) {
   const [pageSize] = useQueryState('perPage', parseAsInteger.withDefault(10));
+  const router = useRouter();
 
   const pageCount = Math.ceil(totalItems / pageSize);
 
@@ -29,8 +33,16 @@ export function ProductTable<TData, TValue>({
     debounceMs: 500
   });
 
+  const handleRowClick = (row: TData) => {
+    // Navigate to product update page when row is clicked
+    const product = row as Product;
+    if (product?.id) {
+      router.push(`/dashboard/product/${product.id}`);
+    }
+  };
+
   return (
-    <DataTable table={table}>
+    <DataTable table={table} onRowClick={handleRowClick}>
       <DataTableToolbar table={table} />
     </DataTable>
   );
