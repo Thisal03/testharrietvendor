@@ -135,7 +135,7 @@ export default function ProductForm({
         </CardHeader>
         <CardContent className='pt-3'>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+          <form onSubmit={form.handleSubmit((values) => onSubmit(values), (errors) => {
             const errorFields = Object.keys(errors);
             if (errorFields.length > 0) {
               // Try to get the most specific error message
