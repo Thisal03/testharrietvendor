@@ -1,6 +1,5 @@
 import { getAccessToken } from '@/lib/services/token';
 import { config } from '../config';
-import { getProductById } from './get-product-by-id';
 
 /**
  * Result of SKU availability check
@@ -57,78 +56,44 @@ export const checkSKUAvailability = async (
   excludeVariationSku?: string
 ): Promise<SKUCheckResult> => {
   try {
-    const token = await getAccessToken();
-    if (!token) {
-      throw new Error('No access token available');
+    // Use Next.js API route to avoid CORS issues
+    const queryParams = new URLSearchParams({
+      sku: sku,
+    });
+    
+    if (excludeProductId) {
+      queryParams.append('excludeProductId', excludeProductId.toString());
+    }
+    if (excludeVariationId) {
+      queryParams.append('excludeVariationId', excludeVariationId.toString());
+    }
+    if (checkDisabledVariations) {
+      queryParams.append('checkDisabledVariations', 'true');
+    }
+    if (excludeVariationSku) {
+      queryParams.append('excludeVariationSku', excludeVariationSku);
     }
 
-    const response = await fetch(`${config.WORDPRESS_SITE_URL}/wp-json/wc/v3/products?sku=${encodeURIComponent(sku)}`, {
+    const response = await fetch(`/api/products/check-sku?${queryParams.toString()}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       console.error('Failed to check SKU availability:', response.status, response.statusText);
       // Fail closed: assume NOT available if we can't verify
       return {
         isAvailable: false,
         confidence: 'low',
-        error: `Unable to verify SKU availability: ${response.statusText}`
+        error: errorData.error || `Unable to verify SKU availability: ${response.statusText}`
       };
     }
 
-    const data = await response.json();
-    
-    // Filter out the current product/variation if we're editing
-    const otherProducts = data.filter((product: any) => {
-      // Always exclude the specified product ID
-      if (excludeProductId && product.id === excludeProductId) return false;
-      
-      // Also exclude the variation ID if specified
-      if (excludeVariationId && product.id === excludeVariationId) return false;
-      
-      return true;
-    });
-    
-    // Check disabled variations in meta_data
-    if (checkDisabledVariations && excludeProductId) {
-      try {
-        const product = await getProductById(excludeProductId, { noCache: true });
-        if (product?.meta_data) {
-          const disabledVars = product.meta_data.find((m: any) => m.key === '_disabled_variations')?.value;
-          if (disabledVars && typeof disabledVars === 'string') {
-            const disabled = JSON.parse(disabledVars);
-            // Check if SKU exists in disabled variations, but exclude the current variation's SKU
-            const hasSKU = disabled.some((v: any) => {
-              // Skip checking against the variation itself
-              if (excludeVariationSku && v.sku === excludeVariationSku) {
-                return false;
-              }
-              return v.sku === sku;
-            });
-            if (hasSKU) {
-              return {
-                isAvailable: false,
-                confidence: 'high',
-                error: 'SKU is reserved by a disabled variation'
-              };
-            }
-          }
-        }
-      } catch (_metaError) {
-        // Silently fail meta_data check, continue with WooCommerce check
-      }
-    }
-    
-    // If any other products have this SKU, it's already taken
-    const isAvailable = otherProducts.length === 0;
-    return {
-      isAvailable,
-      confidence: 'high'
-    };
+    const result: SKUCheckResult = await response.json();
+    return result;
   } catch (error) {
     console.error('Error checking SKU availability:', error);
     // Fail closed: assume NOT available if there's an error
@@ -142,48 +107,26 @@ export const checkSKUAvailability = async (
 
 export const getSKUDetails = async (sku: string): Promise<SKUCheckResult> => {
   try {
-    const token = await getAccessToken();
-    if (!token) {
-      throw new Error('No access token available');
-    }
-
-    const response = await fetch(`${config.WORDPRESS_SITE_URL}/wp-json/wc/v3/products?sku=${encodeURIComponent(sku)}`, {
+    // Use Next.js API route to avoid CORS issues
+    const response = await fetch(`/api/products/check-sku?sku=${encodeURIComponent(sku)}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       console.error('Failed to get SKU details:', response.status, response.statusText);
       return { 
         isAvailable: true, // Assume available if we can't check
-        confidence: 'low'
+        confidence: 'low',
+        error: errorData.error
       };
     }
 
-    const data = await response.json();
-    
-    if (data.length === 0) {
-      return { 
-        isAvailable: true,
-        confidence: 'high'
-      };
-    }
-
-    // Return details of the first product found with this SKU
-    const existingProduct = data[0];
-    return {
-      isAvailable: false,
-      confidence: 'high',
-      existingProduct: {
-        id: existingProduct.id,
-        name: existingProduct.name,
-        sku: existingProduct.sku,
-        status: existingProduct.status
-      }
-    };
+    const result: SKUCheckResult = await response.json();
+    return result;
   } catch (error) {
     console.error('Error getting SKU details:', error);
     return { 
@@ -196,15 +139,10 @@ export const getSKUDetails = async (sku: string): Promise<SKUCheckResult> => {
 
 export const getProductBySKU = async (sku: string) => {
   try {
-    const token = await getAccessToken();
-    if (!token) {
-      throw new Error('No access token available');
-    }
-
-    const response = await fetch(`${config.WORDPRESS_SITE_URL}/wp-json/wc/v3/products?sku=${encodeURIComponent(sku)}`, {
+    // Use Next.js API route to avoid CORS issues
+    const response = await fetch(`/api/products/check-sku?sku=${encodeURIComponent(sku)}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
@@ -213,8 +151,21 @@ export const getProductBySKU = async (sku: string) => {
       throw new Error(`Failed to get product by SKU: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.length > 0 ? data[0] : null;
+    const result: SKUCheckResult = await response.json();
+    
+    // If SKU is not available, return the existing product
+    if (!result.isAvailable && result.existingProduct) {
+      // We need to fetch the full product details
+      // For now, return what we have from the SKU check
+      return {
+        id: result.existingProduct.id,
+        name: result.existingProduct.name,
+        sku: result.existingProduct.sku,
+        status: result.existingProduct.status
+      } as any;
+    }
+    
+    return null;
   } catch (error) {
     console.error('Error getting product by SKU:', error);
     throw error;

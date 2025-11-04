@@ -1,13 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { getCategories, ProductCategory } from '@/framework/products/get-categories';
-import { getAttributes, ProductAttribute } from '@/framework/products/get-attributes';
+import { ProductCategory } from '@/framework/products/get-categories';
+import { ProductAttribute } from '@/framework/products/get-attributes';
 
 /**
  * Custom hook for fetching product-related data (categories and attributes)
  * 
- * Fetches categories and attributes from WooCommerce API and manages loading state.
+ * Fetches categories and attributes from WooCommerce API via Next.js API routes
+ * to avoid CORS issues. Manages loading state.
  * Used by ProductForm for dynamic category selection and attribute management.
  * 
  * @returns {Object} Object containing:
@@ -17,6 +18,7 @@ import { getAttributes, ProductAttribute } from '@/framework/products/get-attrib
  * 
  * @remarks
  * Errors are handled silently to prevent UI disruption. Data is fetched once on mount.
+ * Uses API routes to avoid CORS issues when called from client components.
  * 
  * @example
  * ```tsx
@@ -42,10 +44,16 @@ export function useProductData() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [categoriesData, attributesData] = await Promise.all([
-          getCategories(),
-          getAttributes()
+        const [categoriesResponse, attributesResponse] = await Promise.all([
+          fetch('/api/products/categories'),
+          fetch('/api/products/attributes')
         ]);
+
+        const [categoriesData, attributesData] = await Promise.all([
+          categoriesResponse.ok ? categoriesResponse.json() : [],
+          attributesResponse.ok ? attributesResponse.json() : []
+        ]);
+
         setCategories(categoriesData);
         setAttributes(attributesData);
       } catch (_error) {
